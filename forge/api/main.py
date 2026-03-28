@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from forge.api.routers import datasets, health
+from forge.api.routers import datasets, experiments, health
 
 app = FastAPI(
     title="Forge",
@@ -21,3 +21,4 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(datasets.router)
+app.include_router(experiments.router)

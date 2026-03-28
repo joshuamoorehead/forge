@@ -118,3 +118,35 @@ Run `pytest tests/test_feature_eng.py` — all tests pass.
 3. Trigger runs
 4. `GET /api/experiments/{id}` shows both runs with accuracy metrics AND profiling metrics
 5. All tests pass
+
+## Contract 4: W&B Integration + S3 Artifacts
+**Goal:** Experiment runs log to W&B and save model artifacts to S3.
+
+**Prerequisite:** Contract 3 is complete with working experiment runner.
+
+**Acceptance Criteria:**
+- [ ] Service: `wandb_tracker.py` — wraps W&B logging:
+  - Initialize run with experiment name + hyperparameters
+  - Log training metrics per epoch (for PyTorch models)
+  - Log final metrics + profiling results
+  - Log hyperparameters as W&B config
+- [ ] Service: `s3_client.py` — AWS S3 integration:
+  - Upload model artifacts (serialized models) to S3
+  - Upload dataset artifacts to S3
+  - Generate presigned URLs for download
+  - S3 path stored in `runs.s3_artifact_path`
+- [ ] W&B run ID stored in `runs.wandb_run_id`
+- [ ] Both integrations are optional — if API keys not set, gracefully skip (don't crash)
+- [ ] Update training.py to call both services after training completes
+
+**What NOT to do:**
+- Don't build Airflow yet
+- Don't modify the experiment API — just add integrations to existing training flow
+- If you don't have AWS credentials, use localstack or mock S3
+
+**Verify:**
+1. Set WANDB_API_KEY in .env
+2. Run an experiment
+3. Check W&B dashboard — run appears with metrics
+4. Check S3 (or localstack) — model artifact exists
+5. `runs` table has wandb_run_id and s3_artifact_path populated
