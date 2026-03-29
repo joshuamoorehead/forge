@@ -145,3 +145,132 @@ class ExperimentListResponse(BaseModel):
 
     experiments: list[ExperimentResponse]
     count: int
+
+
+# ---------------------------------------------------------------------------
+# Ops Log schemas
+# ---------------------------------------------------------------------------
+
+
+class OpsLogCreateRequest(BaseModel):
+    """Request body for POST /api/ops/logs."""
+
+    project_name: str = Field(..., min_length=1, max_length=100)
+    log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARN|ERROR|CRITICAL)$")
+    message: str = Field(..., min_length=1)
+    metadata: dict | None = None
+    source: str | None = None
+    cost_usd: float | None = None
+
+
+class OpsLogResponse(BaseModel):
+    """Response model for a single ops log entry."""
+
+    id: UUID
+    project_name: str
+    log_level: str | None
+    message: str | None
+    metadata: dict | None = None
+    source: str | None = None
+    cost_usd: float | None = None
+    is_anomaly: bool = False
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class OpsLogListResponse(BaseModel):
+    """Response model for listing ops logs."""
+
+    logs: list[OpsLogResponse]
+    count: int
+
+
+class OpsLogSummaryResponse(BaseModel):
+    """Aggregate stats for ops logs."""
+
+    total_logs: int
+    error_count: int
+    total_cost_usd: float
+    events_by_project: dict[str, int]
+    events_by_level: dict[str, int]
+
+
+# ---------------------------------------------------------------------------
+# GitHub Webhook schemas
+# ---------------------------------------------------------------------------
+
+
+class GitHubCommit(BaseModel):
+    """A single commit within a GitHub push event."""
+
+    id: str
+    message: str | None = None
+    author: dict | None = None
+    added: list[str] = Field(default_factory=list)
+    removed: list[str] = Field(default_factory=list)
+    modified: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
+
+
+class GitHubPushPayload(BaseModel):
+    """GitHub push webhook payload (subset of fields we care about)."""
+
+    ref: str
+    repository: dict | None = None
+    commits: list[GitHubCommit] = Field(default_factory=list)
+    pusher: dict | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class GitEventResponse(BaseModel):
+    """Response model for a stored git event."""
+
+    id: UUID
+    repo: str
+    event_type: str | None
+    branch: str | None
+    commit_sha: str | None
+    commit_message: str | None
+    author: str | None
+    files_changed: int | None
+    additions: int | None
+    deletions: int | None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class GitEventListResponse(BaseModel):
+    """Response model for listing git events."""
+
+    events: list[GitEventResponse]
+    count: int
+
+
+# ---------------------------------------------------------------------------
+# Agent / Analysis schemas
+# ---------------------------------------------------------------------------
+
+
+class AgentQueryRequest(BaseModel):
+    """Request body for POST /api/agent/query."""
+
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+class IntermediateResult(BaseModel):
+    """A single tool call result from the agent's reasoning chain."""
+
+    tool: str
+    result_preview: str
+
+
+class AgentQueryResponse(BaseModel):
+    """Response from the analysis agent including reasoning transparency."""
+
+    answer: str
+    tools_used: list[str] = Field(default_factory=list)
+    intermediate_results: list[IntermediateResult] = Field(default_factory=list)

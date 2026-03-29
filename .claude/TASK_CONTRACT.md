@@ -150,3 +150,111 @@ Run `pytest tests/test_feature_eng.py` — all tests pass.
 3. Check W&B dashboard — run appears with metrics
 4. Check S3 (or localstack) — model artifact exists
 5. `runs` table has wandb_run_id and s3_artifact_path populated
+
+## Contract 5: Ops Monitoring (Logs + Git Webhooks)
+**Goal:** Ingest and store operational logs and GitHub events.
+
+**Prerequisite:** Contract 1 is complete (needs ops_logs and git_events tables).
+
+**Acceptance Criteria:**
+- [ ] FastAPI router: `ops.py`:
+  - `POST /api/ops/logs` — ingest a log entry (project_name, level, message, metadata, cost_usd)
+  - `GET /api/ops/logs` — query logs with filters (project, level, date range)
+  - `GET /api/ops/summary` — aggregate stats (error count, total cost, events by project)
+- [ ] FastAPI router: `webhooks.py`:
+  - `POST /api/webhooks/github` — receive GitHub webhook payload
+  - Parse push events: extract repo, branch, commit SHA, message, author, files changed
+  - Store parsed events in git_events table
+- [ ] Service: `anomaly.py` — simple anomaly detection:
+  - Rolling z-score on ops metrics (cost, error rate)
+  - Flag entries where z-score > 2.5 as anomalous
+  - Add `is_anomaly` field to log query responses
+- [ ] Unit tests for anomaly detection (test with known anomalous data)
+
+**What NOT to do:**
+- Don't build the frontend dashboard yet
+- Don't set up actual GitHub webhook delivery yet (test with curl)
+- Don't try to parse every GitHub event type — just push events for now
+
+**Verify:**
+```bash
+# Send a test log
+curl -X POST http://localhost:8000/api/ops/logs \
+  -H "Content-Type: application/json" \
+  -d '{"project_name": "marcus", "log_level": "INFO", "message": "test", "cost_usd": 0.05}'
+
+# Send 20 normal logs then one expensive one
+# GET /api/ops/logs should flag the expensive one as anomalous
+
+# Send a fake GitHub webhook
+curl -X POST http://localhost:8000/api/webhooks/github \
+  -H "Content-Type: application/json" \
+  -d '{"ref": "refs/heads/main", "commits": [{"id": "abc123", "message": "test commit"}]}'
+```
+## Contract 6: LangChain/LangGraph Analysis Agent
+**Goal:** Natural language query interface over experiment and ops data.
+
+**Prerequisite:** Contracts 3 and 5 are complete (needs experiment data + ops data in DB).
+
+**Acceptance Criteria:**
+- [ ] Service: `agent/graph.py` — LangGraph agent with these tools:
+  - `query_experiments` — runs SQL against experiments/runs tables, returns formatted results
+  - `compare_runs` — takes two run IDs, returns side-by-side comparison
+  - `search_similar` — semantic search over experiment embeddings via pgvector
+  - `get_ops_summary` — summarize ops activity for a time period
+  - `compute_efficiency_frontier` — find Pareto-optimal runs (accuracy vs. latency)
+- [ ] Service: `agent/tools.py` — tool implementations with proper error handling
+- [ ] Service: `embeddings.py` — generate OpenAI embeddings for run summaries, store in pgvector
+- [ ] Embeddings generated automatically when a run completes (update training.py)
+- [ ] FastAPI router: `analysis.py`:
+  - `POST /api/agent/query` — send question, get response with tool calls shown
+  - Response includes: answer text, tools used, intermediate results
+- [ ] Agent can answer questions like:
+  - "Which model had the best accuracy on SPY?"
+  - "Compare run X and run Y"
+  - "What's the most efficient model (best accuracy per latency)?"
+  - "Show me ops anomalies from the last 24 hours"
+
+**What NOT to do:**
+- Don't build a chat UI yet (that's the frontend contract)
+- Don't add streaming — simple request/response is fine
+- Don't over-engineer the agent — 5 tools is plenty
+
+**Verify:**
+1. Have at least 3-4 completed experiment runs in DB
+2. Have some ops logs in DB
+3. Test agent queries via curl and verify responses are sensible
+4. Verify embeddings exist in experiment_embeddings table
+
+## Contract 7: Airflow DAGs
+**Goal:** Orchestrate data ingestion and experiment training via Airflow.
+
+**Prerequisite:** Contracts 2 and 3 are complete.
+
+**Acceptance Criteria:**
+- [ ] Airflow added to docker-compose (webserver + scheduler + separate airflow DB)
+- [ ] DAG: `ingest_market_data.py`:
+  - Scheduled daily (but can be triggered manually)
+  - Fetches latest data for configured tickers
+  - Calls the /api/datasets/ingest endpoint
+- [ ] DAG: `run_experiment.py`:
+  - Triggered manually (not scheduled)
+  - Accepts experiment config as DAG params
+  - Calls /api/experiments endpoints to create and run experiments
+- [ ] DAG: `ops_digest.py`:
+  - Scheduled daily
+  - Calls /api/ops/summary to get daily summary
+  - Stores digest (optional: send to agent for analysis)
+- [ ] Airflow webserver accessible at localhost:8080
+- [ ] All DAGs appear in Airflow UI without import errors
+
+**What NOT to do:**
+- Don't rewrite the training logic inside Airflow — DAGs should call the FastAPI endpoints
+- Don't spend time on Airflow auth — use default admin/admin
+- Don't add complex retry logic — simple is fine
+
+**Verify:**
+1. `docker-compose up` — Airflow webserver loads at :8080
+2. All 3 DAGs visible in UI
+3. Manually trigger `ingest_market_data` — data appears in DB
+4. Manually trigger `run_experiment` with params — experiment runs

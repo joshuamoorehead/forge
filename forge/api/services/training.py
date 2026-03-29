@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from xgboost import XGBClassifier
 
 from forge.api.models.database import Dataset, Experiment, Run
+from forge.api.services.embeddings import embed_run
 from forge.api.services.profiler import profile_model
 from forge.api.services.s3_client import upload_model_artifact
 from forge.api.services.wandb_tracker import WandbTracker
@@ -442,6 +443,12 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
         db.commit()
         db.refresh(run)
         logger.info("Run %s completed — accuracy=%.4f", run_id, metrics["accuracy"])
+
+        # Generate and store embedding for semantic search (best-effort)
+        try:
+            embed_run(run_id, db)
+        except Exception:
+            logger.warning("Failed to generate embedding for run %s", run_id, exc_info=True)
 
     except Exception:
         tracker.finish()  # clean up W&B run on failure
