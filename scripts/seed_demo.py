@@ -282,16 +282,16 @@ def seed_ops_logs(db: Session) -> None:
 # ---------------------------------------------------------------------------
 
 GIT_EVENTS = [
-    {"repo": "joshuamoorehead/marcus", "branch": "main", "message": "feat: add multi-tool agent routing", "author": "joshuamoorehead", "files": 5, "add": 142, "del": 23},
-    {"repo": "joshuamoorehead/marcus", "branch": "main", "message": "fix: handle empty RAG results gracefully", "author": "joshuamoorehead", "files": 2, "add": 18, "del": 4},
-    {"repo": "joshuamoorehead/marcus", "branch": "main", "message": "refactor: extract LLM client into service layer", "author": "joshuamoorehead", "files": 4, "add": 87, "del": 63},
-    {"repo": "joshuamoorehead/marcus", "branch": "dev", "message": "feat: add cost tracking per agent session", "author": "joshuamoorehead", "files": 3, "add": 56, "del": 8},
-    {"repo": "joshuamoorehead/marcus", "branch": "main", "message": "docs: update README with architecture diagram", "author": "joshuamoorehead", "files": 1, "add": 34, "del": 5},
-    {"repo": "joshuamoorehead/forge", "branch": "main", "message": "feat: add efficiency frontier chart component", "author": "joshuamoorehead", "files": 3, "add": 198, "del": 12},
-    {"repo": "joshuamoorehead/forge", "branch": "main", "message": "fix: anomaly z-score calculation for sparse data", "author": "joshuamoorehead", "files": 2, "add": 25, "del": 11},
-    {"repo": "joshuamoorehead/forge", "branch": "main", "message": "feat: add LangGraph agent with 5 tools", "author": "joshuamoorehead", "files": 4, "add": 312, "del": 0},
-    {"repo": "joshuamoorehead/forge", "branch": "dev", "message": "chore: add K8s manifests for deployment", "author": "joshuamoorehead", "files": 5, "add": 145, "del": 0},
-    {"repo": "joshuamoorehead/forge", "branch": "main", "message": "feat: hardware-aware profiler with efficiency scoring", "author": "joshuamoorehead", "files": 2, "add": 167, "del": 34},
+    {"repo": "marcus", "branch": "main", "message": "feat: add multi-tool agent routing", "author": "joshuamoorehead", "files": 5, "add": 142, "del": 23},
+    {"repo": "marcus", "branch": "main", "message": "fix: handle empty RAG results gracefully", "author": "joshuamoorehead", "files": 2, "add": 18, "del": 4},
+    {"repo": "marcus", "branch": "main", "message": "refactor: extract LLM client into service layer", "author": "joshuamoorehead", "files": 4, "add": 87, "del": 63},
+    {"repo": "marcus", "branch": "dev", "message": "feat: add cost tracking per agent session", "author": "joshuamoorehead", "files": 3, "add": 56, "del": 8},
+    {"repo": "marcus", "branch": "main", "message": "docs: update README with architecture diagram", "author": "joshuamoorehead", "files": 1, "add": 34, "del": 5},
+    {"repo": "forge", "branch": "main", "message": "feat: add efficiency frontier chart component", "author": "joshuamoorehead", "files": 3, "add": 198, "del": 12},
+    {"repo": "forge", "branch": "main", "message": "fix: anomaly z-score calculation for sparse data", "author": "joshuamoorehead", "files": 2, "add": 25, "del": 11},
+    {"repo": "forge", "branch": "main", "message": "feat: add LangGraph agent with 5 tools", "author": "joshuamoorehead", "files": 4, "add": 312, "del": 0},
+    {"repo": "forge", "branch": "dev", "message": "chore: add K8s manifests for deployment", "author": "joshuamoorehead", "files": 5, "add": 145, "del": 0},
+    {"repo": "forge", "branch": "main", "message": "feat: hardware-aware profiler with efficiency scoring", "author": "joshuamoorehead", "files": 2, "add": 167, "del": 34},
 ]
 
 
