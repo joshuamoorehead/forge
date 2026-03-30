@@ -1,0 +1,30 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: |
+          docker build -f Dockerfile.api \
+            -t forge-api:latest \
+            -t forge-api:${{ github.sha }} \
+            .
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend image
+        run: |
+          docker build -f frontend/Dockerfile.prod \
+            -t forge-frontend:latest \
+            -t forge-frontend:${{ github.sha }} \
+            ./frontend

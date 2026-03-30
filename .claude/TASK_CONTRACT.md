@@ -258,3 +258,238 @@ curl -X POST http://localhost:8000/api/webhooks/github \
 2. All 3 DAGs visible in UI
 3. Manually trigger `ingest_market_data` — data appears in DB
 4. Manually trigger `run_experiment` with params — experiment runs
+
+## Contract 8A: Backend Endpoints + Projects Hub Frontend
+**Goal:** New API endpoints for projects aggregation, Next.js setup, dashboard home, and Projects Hub pages.
+
+**Prerequisite:** Contracts 5 and 7 are complete.
+
+**Acceptance Criteria:**
+
+### Backend additions
+- [ ] New router: `projects.py` with endpoints:
+  - `GET /api/projects` — returns list of unique projects with aggregated stats (commit count last 7d, total cost last 7d, error count last 7d, last activity timestamp, health status: green/yellow/red)
+  - `GET /api/projects/{name}` — returns project detail: recent logs (limit 50), git events (limit 50), linked experiments
+  - `GET /api/activity/feed` — returns interleaved timeline of recent git commits + ops logs + experiment completions across all projects, most recent first (limit 20)
+- [ ] Health status logic: green = no errors last 24h, yellow = warnings but no errors, red = any errors last 24h
+
+### Frontend setup
+- [ ] Next.js app initialized with Tailwind CSS in /frontend directory
+- [ ] Added to docker-compose with hot reload
+- [ ] API client in /frontend/lib/api.ts
+- [ ] Sidebar navigation layout with links: Dashboard, Projects, Experiments, Agent
+
+### Dashboard Home (`/`)
+- [ ] Summary cards: total projects tracked, active experiments, ops alerts (error count last 24h), weekly LLM cost
+- [ ] Recent activity feed — interleaved timeline from /api/activity/feed
+- [ ] Components: SummaryCard, ActivityTimeline
+
+### Projects Hub (`/projects`)
+- [ ] Card grid of all projects from /api/projects
+- [ ] Each ProjectCard shows: name, HealthBadge (green/yellow/red), last activity, commit count, cost, error count
+- [ ] Click card → project detail page
+
+### Project Detail (`/projects/[name]`)
+- [ ] Tabbed interface with 4 tabs:
+- [ ] **Activity Tab:** Git commit timeline (vertical timeline with dots, most recent at top)
+- [ ] **Logs Tab:** Ops logs table with severity color coding (INFO=gray, WARN=yellow, ERROR=red), anomaly badge, cost column, severity filter dropdown
+- [ ] **Cost Tab:** Cumulative cost line chart + daily cost bar chart + total cost callout (use recharts)
+- [ ] **Experiments Tab:** List of linked experiments (can be empty with placeholder text)
+
+### Components:
+- [ ] ProjectCard, HealthBadge, SummaryCard
+- [ ] ActivityTimeline (git events)
+- [ ] LogTable (filterable, color-coded)
+- [ ] CostChart (recharts line + bar)
+
+**What NOT to do:**
+- Don't build the experiments detail page yet (that's 8B)
+- Don't build the agent chat yet (that's 8B)
+- Don't add authentication
+- Don't use a component library — Tailwind only
+- Don't try mobile-responsive — desktop-first
+
+**Verify:**
+1. `docker-compose up` — frontend loads at :3000
+2. Dashboard shows real summary stats and activity feed
+3. `/projects` shows project cards with real data from ops_logs and git_events
+4. `/projects/marcus` (or whatever project name exists) shows all 4 tabs with real data
+5. Cost chart renders with real cost data
+6. Health badges show correct colors based on recent error activity
+
+## Contract 8B: Experiments Pages + Agent Chat + Frontend Polish
+**Goal:** Experiment detail with efficiency frontier, agent chat interface, and overall frontend polish.
+
+**Prerequisite:** Contract 8A is complete with working Projects Hub.
+
+**Acceptance Criteria:**
+
+### Experiments List (`/experiments`)
+- [ ] Table/list of all experiments with: name, status, dataset name, model types used, created date
+- [ ] Click row → experiment detail page
+
+### Experiment Detail (`/experiments/[id]`)
+- [ ] Run comparison table: all runs with columns for accuracy, precision, recall, F1, inference_latency_ms, peak_memory_mb, throughput, efficiency_score — all sortable
+- [ ] Efficiency frontier scatter chart (recharts):
+  - X-axis: inference_latency_ms
+  - Y-axis: accuracy
+  - Each dot is a run, labeled with model type
+  - Pareto-optimal runs highlighted in a different color and connected by a line
+  - Hover tooltip shows: run name, accuracy, latency, efficiency score
+- [ ] Model details panel: click a run to see full hyperparameters and feature engineering config
+
+### Agent Chat (`/agent`)
+- [ ] Chat interface with text input and send button
+- [ ] Message history displayed as conversation bubbles
+- [ ] Agent responses show tool calls transparently (which tool, what it returned)
+- [ ] Suggested starter questions shown when chat is empty:
+  - "Which model is most efficient?"
+  - "Show ops anomalies from today"
+  - "Compare my last two runs"
+- [ ] Loading indicator while agent is thinking
+
+### Components:
+- [ ] RunComparisonTable (sortable)
+- [ ] EfficiencyFrontier (recharts scatter + Pareto line)
+- [ ] AgentChat (input + messages + tool call display)
+
+### Polish
+- [ ] All sidebar links work and highlight active page
+- [ ] Empty states: show helpful messages when no data exists (e.g., "No experiments yet — create one via the API")
+- [ ] Loading states: show spinner/skeleton while API calls are in flight
+- [ ] Error states: show friendly error message if API is unreachable
+- [ ] Consistent spacing and typography across all pages
+
+**What NOT to do:**
+- Don't modify any backend code from 8A
+- Don't add new API endpoints — work with what exists
+- Don't over-animate — clean and functional beats fancy
+- Don't add dark mode — not worth the time
+
+**Verify:**
+1. `/experiments` lists real experiments
+2. `/experiments/[id]` shows run comparison table with real metrics AND profiling data
+3. Efficiency frontier chart renders with real data, Pareto runs highlighted
+4. `/agent` sends a question, shows loading state, displays response with tool calls
+5. All pages have proper empty/loading/error states
+6. Full navigation flow works: Dashboard → Projects → Project Detail → Experiments Tab → Experiment Detail
+
+## Contract 9: CI/CD + K8s + Polish
+**Goal:** GitHub Actions, Kubernetes manifests, README, final testing.
+
+**Prerequisite:** All prior contracts complete.
+
+**Acceptance Criteria:**
+- [ ] `.github/workflows/ci.yml`: lint (ruff), test (pytest), build Docker images
+- [ ] `.github/workflows/docker-build.yml`: build and tag containers on push to main
+- [ ] `k8s/` directory with:
+  - deployment.yaml (API + frontend deployments with resource limits)
+  - service.yaml (ClusterIP services)
+  - configmap.yaml (non-secret config)
+  - ingress.yaml (basic ingress definition)
+- [ ] Dockerfiles optimized (multi-stage builds, .dockerignore)
+- [ ] README.md with:
+  - Project description and motivation
+  - Architecture diagram (can be ASCII or mermaid)
+  - Tech stack table
+  - Setup instructions (docker-compose up)
+  - Screenshot/gif of dashboard
+  - API documentation link (FastAPI /docs)
+- [ ] All existing tests pass
+- [ ] `docker-compose up` brings up entire stack cleanly from scratch
+
+**What NOT to do:**
+- Don't actually deploy to a K8s cluster — manifests are for demonstrating knowledge
+- Don't add Terraform — it's a stretch goal if you have extra time
+- Don't refactor working code — polish only
+
+**Verify:**
+1. `git push` triggers CI — all checks pass
+2. K8s manifests are valid YAML (use `kubectl apply --dry-run=client`)
+3. README renders properly on GitHub
+4. Fresh clone → `docker-compose up` → everything works
+
+---
+
+## Contract 10: Deploy to Railway + Seed Demo Data
+**Goal:** Get Forge live on a public URL with enough real data to demo in 60 seconds during an interview.
+
+**Prerequisite:** Contracts 0-9 complete, code review fixes applied, Railway account created (sign up at railway.app with GitHub).
+
+**Acceptance Criteria:**
+
+### Railway Setup
+- [ ] Install Railway CLI: `npm install -g @railway/cli`
+- [ ] Login: `railway login`
+- [ ] Create new project: `railway init` (name it "forge")
+- [ ] Add PostgreSQL service via Railway dashboard (Railway provides managed Postgres — no Docker needed)
+- [ ] Add pgvector extension to Railway Postgres (run `CREATE EXTENSION IF NOT EXISTS vector;` via `railway connect postgres`)
+
+### Environment Variables
+- [ ] Set all env vars in Railway dashboard (Settings → Variables):
+  - DATABASE_URL (auto-provided by Railway's Postgres)
+  - WANDB_API_KEY
+  - AWS_ACCESS_KEY_ID
+  - AWS_SECRET_ACCESS_KEY
+  - AWS_S3_BUCKET
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
+  - CORS_ORIGINS (set to the Railway frontend URL once known)
+- [ ] Remove any localhost references from env vars
+
+### Deploy API Backend
+- [ ] Create a Railway service for the API from the GitHub repo
+- [ ] Set root directory to `/` and build command to use `Dockerfile.api`
+- [ ] Set start command: `uvicorn forge.api.main:app --host 0.0.0.0 --port $PORT`
+- [ ] Railway auto-assigns a PORT — make sure FastAPI reads from `$PORT` env var
+- [ ] Update `forge/api/main.py` to read PORT from environment: `port = int(os.getenv("PORT", 8000))`
+- [ ] Verify: API health endpoint returns 200 at the Railway URL
+
+### Deploy Frontend
+- [ ] Create a separate Railway service for the frontend
+- [ ] Set root directory to `/frontend`
+- [ ] Set NEXT_PUBLIC_API_URL to the Railway API service URL
+- [ ] Verify: frontend loads at its Railway URL
+
+### Run Alembic Migrations
+- [ ] Run migrations against Railway Postgres: `railway run alembic upgrade head`
+- [ ] Verify all tables exist
+
+### Seed Demo Data
+- [ ] Create a seed script: `scripts/seed_demo.py` that populates the database with:
+  - 2-3 datasets (SPY, AAPL, QQQ — ingest real data via yfinance)
+  - 2-3 experiments with 4-6 total runs across XGBoost, Random Forest, LSTM
+  - 20-30 ops log entries across 2-3 projects (marcus, forge) with varying severity
+  - 5-10 fake git events (commits to marcus and forge repos)
+  - At least 1 anomalous ops log entry (high cost spike) so anomaly detection has something to flag
+- [ ] Run seed script against Railway: `railway run python scripts/seed_demo.py`
+- [ ] Verify: all dashboard pages show real data
+
+### Custom Subdomain
+- [ ] Set custom subdomain on the frontend service (e.g., forgelab.up.railway.app or similar)
+- [ ] Update CORS_ORIGINS to include the final frontend URL
+
+### Verify End-to-End
+- [ ] Frontend loads at public URL — no errors
+- [ ] Dashboard home shows summary cards with real numbers
+- [ ] Projects page shows project cards with health indicators
+- [ ] Project detail shows logs, git events, and cost charts
+- [ ] Experiments page lists seeded experiments
+- [ ] Experiment detail shows efficiency frontier chart with real run data
+- [ ] Agent chat answers a question using real data
+- [ ] W&B dashboard shows the seeded experiment runs
+
+**What NOT to do:**
+- Don't set up Airflow on Railway (too heavy for a demo — Airflow is a local dev tool)
+- Don't add authentication (personal tool, not multi-tenant)
+- Don't optimize for production scale — this is a demo deployment
+- Don't spend time on custom domains — the .up.railway.app subdomain is fine
+
+**Verify the 60-second demo flow:**
+1. Open the URL on your phone or laptop
+2. "This is Forge, my ML systems platform. Here's the projects hub — I'm tracking Marcus and Forge."
+3. Click a project → "I can see git activity, ops logs with anomaly detection, and LLM cost tracking."
+4. Go to experiments → "Here's where I compare models. XGBoost vs Random Forest vs LSTM on financial data."
+5. Click experiment → "This efficiency frontier shows the accuracy-to-latency tradeoff — my ECE differentiator."
+6. Go to agent → ask "which model is most efficient?" → "And I can query everything with natural language via LangChain."
+7. Done. Under 60 seconds.

@@ -16,18 +16,22 @@ from forge.api.models.database import ExperimentEmbedding, Experiment, Run
 
 logger = logging.getLogger(__name__)
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 EMBEDDING_MODEL = "text-embedding-ada-002"
 EMBEDDING_DIM = 1536
 
 
 def _get_openai_client():
-    """Return an OpenAI client, or None if the API key is not set."""
-    if not OPENAI_API_KEY:
+    """Return an OpenAI client, or None if the API key is not set.
+
+    Reads OPENAI_API_KEY lazily so that key rotation or late-set env vars
+    are picked up without restarting the process.
+    """
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
         logger.warning("OPENAI_API_KEY not set — embeddings disabled")
         return None
     from openai import OpenAI
-    return OpenAI(api_key=OPENAI_API_KEY)
+    return OpenAI(api_key=api_key)
 
 
 def generate_embedding(content: str) -> list[float] | None:

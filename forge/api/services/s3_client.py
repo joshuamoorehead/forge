@@ -8,9 +8,9 @@ are not configured — all operations return None instead of crashing.
 import io
 import logging
 import os
-import pickle
 from uuid import UUID
 
+import joblib
 import torch
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,8 @@ def upload_model_artifact(
         torch.save(model.state_dict(), buffer)
         extension = "pt"
     else:
-        pickle.dump(model, buffer)
-        extension = "pkl"
+        joblib.dump(model, buffer)
+        extension = "joblib"
 
     buffer.seek(0)
     s3_key = f"models/{run_id}/{model_type}.{extension}"

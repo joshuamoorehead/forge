@@ -23,16 +23,16 @@ def compute_rolling_zscores(
     """
     zscores = []
     for i in range(len(values)):
-        slice = values[max(0, i-window):i]
-        if len(slice) == 0:
+        window_values = values[max(0, i-window):i]
+        if len(window_values) == 0:
             zscores.append(0.0)
             continue
-        std = np.std(slice)
+        std = np.std(window_values)
         if std == 0:
             # If current value matches the flat history, z=0; otherwise infinite deviation
-            zscores.append(0.0 if values[i] == slice[0] else float("inf"))
+            zscores.append(0.0 if values[i] == window_values[0] else float("inf"))
             continue
-        zscores.append((values[i] - np.mean(slice)) / np.std(slice))
+        zscores.append((values[i] - np.mean(window_values)) / std)
     return zscores
 
 

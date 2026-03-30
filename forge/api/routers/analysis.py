@@ -31,7 +31,7 @@ async def agent_query(
         logger.exception("Agent query failed: %s", request.question)
         raise HTTPException(
             status_code=500,
-            detail=f"Agent query failed: {exc}",
+            detail="Agent query failed — check server logs for details",
         ) from exc
 
     return AgentQueryResponse(

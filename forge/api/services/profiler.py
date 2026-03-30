@@ -7,6 +7,7 @@ and computes an efficiency score for deployment tradeoff analysis.
 import io
 import logging
 import pickle
+import threading
 import time
 import tracemalloc
 from dataclasses import dataclass
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 WARMUP_ITERATIONS = 10
 DEFAULT_ITERATIONS = 100
+
+# Guard tracemalloc start/stop — it's a process-global resource
+_tracemalloc_lock = threading.Lock()
 
 
 @dataclass
@@ -85,18 +89,19 @@ def profile_model(
     for _ in range(WARMUP_ITERATIONS):
         _predict(model, sample_input)
 
-    # Latency profiling with memory tracking
-    tracemalloc.start()
-    latencies: list[float] = []
+    # Latency profiling with memory tracking (lock prevents concurrent interference)
+    with _tracemalloc_lock:
+        tracemalloc.start()
+        latencies: list[float] = []
 
-    for _ in range(n_iterations):
-        start = time.perf_counter_ns()
-        _predict(model, sample_input)
-        end = time.perf_counter_ns()
-        latencies.append((end - start) / 1e6)  # ns → ms
+        for _ in range(n_iterations):
+            start = time.perf_counter_ns()
+            _predict(model, sample_input)
+            end = time.perf_counter_ns()
+            latencies.append((end - start) / 1e6)  # ns → ms
 
-    _, peak_bytes = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+        _, peak_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
     latency_array = np.array(latencies)
     mean_latency = float(np.mean(latency_array))
@@ -135,4 +140,6 @@ def compute_efficiency_score(
     if denominator == 0:
         return 0.0
 
-    return accuracy / denominator
+    raw_score = accuracy / denominator
+    # Cap at 1000.0 so fast/small models produce comparable scores
+    return min(raw_score, 1000.0)

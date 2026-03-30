@@ -255,6 +255,69 @@ class GitEventListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Project / Activity Feed schemas
+# ---------------------------------------------------------------------------
+
+
+class ProjectSummary(BaseModel):
+    """Summary stats for a single project (virtual aggregation over ops_logs + git_events)."""
+
+    name: str
+    commit_count_7d: int = 0
+    total_cost_7d: float = 0.0
+    error_count_7d: int = 0
+    last_activity: datetime | None = None
+    health: str = "green"  # green / yellow / red
+
+
+class ProjectListResponse(BaseModel):
+    """Response model for GET /api/projects."""
+
+    projects: list[ProjectSummary]
+    count: int
+
+
+class ProjectDetailResponse(BaseModel):
+    """Detailed view of a single project with recent logs, git events, and linked experiments."""
+
+    name: str
+    recent_logs: list["OpsLogResponse"]
+    git_events: list["GitEventResponse"]
+    linked_experiments: list["ExperimentResponse"]
+
+
+class ActivityFeedItem(BaseModel):
+    """A single item in the interleaved activity timeline."""
+
+    type: str  # "git_commit" | "ops_log" | "experiment_completion"
+    timestamp: datetime
+    project: str | None = None
+    summary: str
+    detail: dict | None = None
+
+
+class ActivityFeedResponse(BaseModel):
+    """Response model for GET /api/activity/feed."""
+
+    items: list[ActivityFeedItem]
+    count: int
+
+
+class DashboardSummaryResponse(BaseModel):
+    """Aggregate stats for the dashboard home page."""
+
+    total_projects: int
+    active_experiments: int
+    ops_alerts_24h: int
+    weekly_llm_cost: float
+
+
+# ---------------------------------------------------------------------------
+# Agent / Analysis schemas
+# ---------------------------------------------------------------------------
+
+
 class AgentQueryRequest(BaseModel):
     """Request body for POST /api/agent/query."""
 

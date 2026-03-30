@@ -1,6 +1,11 @@
 """GitHub webhook endpoints — receive and store push events."""
 
-from fastapi import APIRouter, Depends
+import hashlib
+import hmac
+import logging
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from forge.api.models.database import GitEvent, get_db
@@ -10,14 +15,46 @@ from forge.api.models.schemas import (
     GitHubPushPayload,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+
+GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
+
+
+async def _verify_github_signature(request: Request) -> None:
+    """Verify the X-Hub-Signature-256 HMAC header from GitHub.
+
+    If GITHUB_WEBHOOK_SECRET is not configured, verification is skipped
+    to allow local development without a real webhook secret.
+    """
+    if not GITHUB_WEBHOOK_SECRET:
+        return
+
+    signature_header = request.headers.get("X-Hub-Signature-256")
+    if not signature_header:
+        raise HTTPException(status_code=403, detail="Missing webhook signature")
+
+    body = await request.body()
+    expected_sig = "sha256=" + hmac.new(
+        GITHUB_WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_sig, signature_header):
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
 
 
 @router.post("/github", response_model=GitEventListResponse, status_code=201)
 async def receive_github_webhook(
-    payload: GitHubPushPayload, db: Session = Depends(get_db)
+    payload: GitHubPushPayload,
+    request: Request,
+    db: Session = Depends(get_db),
 ) -> GitEventListResponse:
     """Receive a GitHub push webhook, parse commits, and store as git events."""
+    await _verify_github_signature(request)
+
     # Extract repo name — fall back to "unknown" if repository block missing
     repo = "unknown"
     if payload.repository and "full_name" in payload.repository:

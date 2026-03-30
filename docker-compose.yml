@@ -7,6 +7,11 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://forge:forge@db:5432/forge
+      - WANDB_API_KEY
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
     env_file:
       - .env
     depends_on:
@@ -20,7 +25,7 @@ services:
   db:
     image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_USER=forge
       - POSTGRES_PASSWORD=forge
@@ -34,6 +39,21 @@ services:
       timeout: 5s
       retries: 5
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
   airflow-webserver:
     image: apache/airflow:2.8.1
     ports:
@@ -42,7 +62,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://forge:forge@db:5432/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=False
     volumes:
       - ./airflow/dags:/opt/airflow/dags
     depends_on:

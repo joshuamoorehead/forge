@@ -4,10 +4,10 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from forge.api.models.database import Dataset, Experiment, Run, get_db
+from forge.api.models.database import Dataset, Experiment, Run, SessionLocal, get_db
 from forge.api.models.schemas import (
     ExperimentCreateRequest,
     ExperimentDetailResponse,
@@ -125,12 +125,51 @@ def get_experiment(
     )
 
 
+def _execute_runs_in_background(experiment_id: UUID, run_ids: list[UUID]) -> None:
+    """Execute pending runs in a background thread with its own DB session.
+
+    This function is invoked via FastAPI BackgroundTasks so the HTTP response
+    returns immediately while training proceeds asynchronously.
+    """
+    db = SessionLocal()
+    try:
+        for run_id in run_ids:
+            try:
+                run_experiment_run(run_id, db)
+            except Exception:
+                logger.exception("Run %s failed", run_id)
+
+        # Update experiment status based on run outcomes
+        experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+        if experiment is None:
+            return
+
+        all_runs = db.query(Run).filter(Run.experiment_id == experiment_id).all()
+        statuses = {r.status for r in all_runs}
+
+        if statuses == {"completed"}:
+            experiment.status = "completed"
+        elif "failed" in statuses:
+            experiment.status = "failed"
+        elif "pending" in statuses:
+            experiment.status = "partial"
+        experiment.updated_at = datetime.now(timezone.utc)
+        db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/{experiment_id}/run", response_model=ExperimentDetailResponse)
 def trigger_experiment_runs(
     experiment_id: UUID,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> ExperimentDetailResponse:
-    """Trigger all pending runs for an experiment."""
+    """Trigger all pending runs for an experiment.
+
+    Training is executed in the background so this endpoint returns immediately
+    with the experiment in 'running' status. Poll GET /{id} for completion.
+    """
     experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if experiment is None:
         raise HTTPException(
@@ -138,8 +177,8 @@ def trigger_experiment_runs(
             detail=f"Experiment {experiment_id} not found",
         )
 
-    runs = db.query(Run).filter(Run.experiment_id == experiment_id).all()
-    pending_runs = [r for r in runs if r.status == "pending"]
+    all_runs = db.query(Run).filter(Run.experiment_id == experiment_id).all()
+    pending_runs = [r for r in all_runs if r.status == "pending"]
 
     if not pending_runs:
         raise HTTPException(
@@ -147,30 +186,15 @@ def trigger_experiment_runs(
             detail="No pending runs to execute",
         )
 
-    # Update experiment status
+    # Update experiment status and return immediately
     experiment.status = "running"
     experiment.updated_at = datetime.now(timezone.utc)
     db.commit()
-
-    # Execute each pending run synchronously
-    for run in pending_runs:
-        try:
-            run_experiment_run(run.id, db)
-        except Exception:
-            logger.exception("Run %s failed", run.id)
-
-    # Update experiment status based on run outcomes
     db.refresh(experiment)
-    all_runs = db.query(Run).filter(Run.experiment_id == experiment_id).all()
-    statuses = {r.status for r in all_runs}
 
-    if statuses == {"completed"}:
-        experiment.status = "completed"
-    elif "failed" in statuses:
-        experiment.status = "failed"
-    experiment.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(experiment)
+    # Schedule training in the background with its own DB session
+    pending_run_ids = [r.id for r in pending_runs]
+    background_tasks.add_task(_execute_runs_in_background, experiment_id, pending_run_ids)
 
     return ExperimentDetailResponse(
         id=experiment.id,

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forge-config
+  namespace: forge
+  labels:
+    app: forge
+data:
+  NEXT_PUBLIC_API_URL: "http://forge-api:8000"
+  AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"

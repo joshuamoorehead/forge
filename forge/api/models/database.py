@@ -82,7 +82,7 @@ class Experiment(Base):
     dataset_id = Column(UUID(as_uuid=True), ForeignKey("datasets.id"))
     status = Column(String(20), server_default="pending")
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Run(Base):
