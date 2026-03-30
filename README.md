@@ -1,5 +1,7 @@
 # Forge
 
+**Live Demo:** [forgelab.up.railway.app](https://forgelab.up.railway.app)
+
 **ML Experimentation & Agent Operations Platform for Financial Time-Series**
 
 Forge is a full-stack platform for running, tracking, and analyzing machine learning experiments on financial data. It combines automated data ingestion, hardware-aware model profiling, operational monitoring, and a natural language analysis agent — all orchestrated through Airflow and exposed via a modern dashboard.
@@ -81,7 +83,7 @@ Built as a portfolio project to demonstrate end-to-end ML engineering: from raw 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/forge.git
+git clone https://github.com/joshuamoorehead/forge.git
 cd forge
 
 # Copy environment variables
