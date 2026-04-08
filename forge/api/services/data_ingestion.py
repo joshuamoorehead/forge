@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 from forge.api.models.database import Dataset
 from forge.api.services.feature_eng import compute_all_features
+from forge.api.services.metrics import DATA_INGESTION_ROWS_TOTAL
 
 DATA_DIR = Path(os.getenv("FORGE_DATA_DIR", "data/datasets"))
 
@@ -83,6 +84,7 @@ def ingest_dataset(
         featured_df = compute_all_features(df)
         featured_df["ticker"] = ticker
         all_frames.append(featured_df)
+        DATA_INGESTION_ROWS_TOTAL.labels(ticker=ticker).inc(len(featured_df))
 
     combined = pd.concat(all_frames, ignore_index=True)
 

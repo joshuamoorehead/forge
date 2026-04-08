@@ -82,6 +82,7 @@ export interface RunResponse {
   model_type: string;
   hyperparameters: Record<string, unknown>;
   feature_engineering: Record<string, unknown> | null;
+  feature_set_id: string | null;
   accuracy: number | null;
   precision_score: number | null;
   recall: number | null;
@@ -97,6 +98,7 @@ export interface RunResponse {
   throughput_samples_per_sec: number | null;
   training_time_seconds: number | null;
   efficiency_score: number | null;
+  data_version_hash: string | null;
   wandb_run_id: string | null;
   s3_artifact_path: string | null;
   status: string;
@@ -150,6 +152,7 @@ export interface DashboardSummaryResponse {
   active_experiments: number;
   ops_alerts_24h: number;
   weekly_llm_cost: number;
+  drift_alerts_7d: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +175,22 @@ export function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
   return apiFetch<DashboardSummaryResponse>("/api/dashboard/summary");
 }
 
+// ---------------------------------------------------------------------------
+// Metrics Summary (Prometheus-backed)
+// ---------------------------------------------------------------------------
+
+export interface MetricsSummaryResponse {
+  total_requests: number;
+  total_errors: number;
+  error_rate_pct: number;
+  experiments_total: number;
+  llm_cost_dollars: number;
+}
+
+export function fetchMetricsSummary(): Promise<MetricsSummaryResponse> {
+  return apiFetch<MetricsSummaryResponse>("/api/metrics/summary");
+}
+
 export function fetchExperiments(): Promise<ExperimentListResponse> {
   return apiFetch<ExperimentListResponse>("/api/experiments");
 }
@@ -185,4 +204,251 @@ export function sendAgentQuery(question: string): Promise<AgentQueryResponse> {
     method: "POST",
     body: JSON.stringify({ question }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Feature Store
+// ---------------------------------------------------------------------------
+
+export interface FeatureRegistryEntry {
+  id: string;
+  feature_set_id: string;
+  dataset_id: string;
+  storage_path: string | null;
+  row_count: number | null;
+  computed_at: string | null;
+  status: string;
+}
+
+export interface FeatureSetResponse {
+  id: string;
+  name: string;
+  version: number;
+  description: string | null;
+  feature_config: Record<string, unknown>;
+  feature_columns: string[] | null;
+  created_at: string | null;
+  is_active: string | null;
+}
+
+export interface FeatureSetDetailResponse extends FeatureSetResponse {
+  registry_entries: FeatureRegistryEntry[];
+}
+
+export interface FeatureSetListResponse {
+  feature_sets: FeatureSetResponse[];
+  count: number;
+}
+
+export interface FeatureSetCompareResponse {
+  feature_set_a: Record<string, unknown>;
+  feature_set_b: Record<string, unknown>;
+  columns_added: string[];
+  columns_removed: string[];
+  config_added: Record<string, unknown>;
+  config_removed: Record<string, unknown>;
+  config_changed: Record<string, unknown>;
+}
+
+export function fetchFeatureSets(): Promise<FeatureSetListResponse> {
+  return apiFetch<FeatureSetListResponse>("/api/features");
+}
+
+export function fetchFeatureSetDetail(id: string): Promise<FeatureSetDetailResponse> {
+  return apiFetch<FeatureSetDetailResponse>(`/api/features/${encodeURIComponent(id)}`);
+}
+
+export function compareFeatureSets(a: string, b: string): Promise<FeatureSetCompareResponse> {
+  return apiFetch<FeatureSetCompareResponse>(`/api/features/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Model Registry
+// ---------------------------------------------------------------------------
+
+export interface ModelVersionResponse {
+  id: string;
+  model_id: string;
+  version: number;
+  run_id: string;
+  stage: string;
+  stage_changed_at: string | null;
+  stage_changed_by: string | null;
+  s3_artifact_path: string | null;
+  model_size_mb: number | null;
+  metrics_snapshot: Record<string, number | null> | null;
+  tags: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export interface ModelStageHistoryEntry {
+  id: string;
+  model_version_id: string;
+  from_stage: string;
+  to_stage: string;
+  changed_at: string | null;
+  reason: string | null;
+}
+
+export interface ModelListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  version_count: number;
+  production_version: number | null;
+  production_accuracy: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ModelListResponse {
+  models: ModelListItem[];
+  count: number;
+}
+
+export interface ModelDetailResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  versions: ModelVersionResponse[];
+  stage_history: ModelStageHistoryEntry[];
+}
+
+export interface ModelVersionCompareResponse {
+  version_a: Record<string, unknown>;
+  version_b: Record<string, unknown>;
+  metrics: Record<string, { version_a: number | null; version_b: number | null; delta?: number; pct_change?: number | null }>;
+}
+
+export function fetchModels(): Promise<ModelListResponse> {
+  return apiFetch<ModelListResponse>("/api/models");
+}
+
+export function fetchModelDetail(name: string): Promise<ModelDetailResponse> {
+  return apiFetch<ModelDetailResponse>(`/api/models/${encodeURIComponent(name)}`);
+}
+
+export function transitionModelStage(name: string, version: number, stage: string, reason?: string): Promise<ModelVersionResponse> {
+  return apiFetch<ModelVersionResponse>(`/api/models/${encodeURIComponent(name)}/versions/${version}/stage`, {
+    method: "PATCH",
+    body: JSON.stringify({ stage, reason }),
+  });
+}
+
+export function registerModelVersion(name: string, runId: string, tags?: Record<string, unknown>): Promise<ModelVersionResponse> {
+  return apiFetch<ModelVersionResponse>(`/api/models/${encodeURIComponent(name)}/versions`, {
+    method: "POST",
+    body: JSON.stringify({ run_id: runId, tags }),
+  });
+}
+
+export function compareModelVersions(name: string, a: number, b: number): Promise<ModelVersionCompareResponse> {
+  return apiFetch<ModelVersionCompareResponse>(`/api/models/${encodeURIComponent(name)}/compare?a=${a}&b=${b}`);
+}
+
+// ---------------------------------------------------------------------------
+// Drift Detection
+// ---------------------------------------------------------------------------
+
+export interface DriftReportResponse {
+  id: string;
+  dataset_id: string;
+  reference_dataset_id: string;
+  report_type: string;
+  model_version_id: string | null;
+  overall_drift_score: number | null;
+  is_drifted: string | null;
+  feature_scores: Record<string, unknown> | null;
+  config: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export interface DriftReportListResponse {
+  reports: DriftReportResponse[];
+  count: number;
+}
+
+export interface DriftSummaryResponse {
+  total_reports: number;
+  drifted_count: number;
+  datasets_with_drift: number;
+  by_type: Record<string, number>;
+  last_check: string | null;
+  days: number;
+}
+
+export function fetchDriftReports(params?: { dataset_id?: string; report_type?: string; is_drifted?: boolean }): Promise<DriftReportListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.dataset_id) searchParams.set("dataset_id", params.dataset_id);
+  if (params?.report_type) searchParams.set("report_type", params.report_type);
+  if (params?.is_drifted !== undefined) searchParams.set("is_drifted", String(params.is_drifted));
+  const qs = searchParams.toString();
+  return apiFetch<DriftReportListResponse>(`/api/drift/reports${qs ? "?" + qs : ""}`);
+}
+
+export function fetchDriftReport(id: string): Promise<DriftReportResponse> {
+  return apiFetch<DriftReportResponse>(`/api/drift/reports/${encodeURIComponent(id)}`);
+}
+
+export function fetchDriftSummary(days: number = 30): Promise<DriftSummaryResponse> {
+  return apiFetch<DriftSummaryResponse>(`/api/drift/summary?days=${days}`);
+}
+
+// ---------------------------------------------------------------------------
+// Reproducibility
+// ---------------------------------------------------------------------------
+
+export interface RunEnvironmentResponse {
+  id: string;
+  run_id: string;
+  git_sha: string | null;
+  git_branch: string | null;
+  git_dirty: boolean | null;
+  python_version: string | null;
+  package_versions: Record<string, string> | null;
+  docker_image_tag: string | null;
+  random_seed: number | null;
+  env_hash: string | null;
+  created_at: string | null;
+}
+
+export interface ReproduceResponse {
+  git_sha: string | null;
+  command: string;
+  data_version: string | null;
+  feature_set: string | null;
+  environment_hash: string | null;
+  random_seed: number | null;
+  warnings: string[];
+}
+
+export interface ReproducibilityReport {
+  verdict: string;
+  factors: Record<string, { run_a: unknown; run_b: unknown; match: boolean }>;
+  warnings: string[];
+}
+
+export interface EnvironmentDiffResponse {
+  run_a: RunEnvironmentResponse | null;
+  run_b: RunEnvironmentResponse | null;
+  packages_added: Record<string, string>;
+  packages_removed: Record<string, string>;
+  packages_changed: Record<string, { run_a: string; run_b: string }>;
+  field_diffs: Record<string, { run_a: unknown; run_b: unknown }>;
+  environments_identical: boolean;
+  reproducibility: ReproducibilityReport | null;
+}
+
+export function fetchRunEnvironment(experimentId: string, runId: string): Promise<RunEnvironmentResponse> {
+  return apiFetch<RunEnvironmentResponse>(`/api/experiments/${encodeURIComponent(experimentId)}/runs/${encodeURIComponent(runId)}/environment`);
+}
+
+export function fetchReproduceSpec(experimentId: string, runId: string): Promise<ReproduceResponse> {
+  return apiFetch<ReproduceResponse>(`/api/experiments/${encodeURIComponent(experimentId)}/runs/${encodeURIComponent(runId)}/reproduce`);
+}
+
+export function compareEnvironments(runA: string, runB: string): Promise<EnvironmentDiffResponse> {
+  return apiFetch<EnvironmentDiffResponse>(`/api/experiments/compare-environments?run_a=${encodeURIComponent(runA)}&run_b=${encodeURIComponent(runB)}`);
 }

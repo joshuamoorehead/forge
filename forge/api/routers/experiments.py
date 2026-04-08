@@ -7,14 +7,19 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from forge.api.models.database import Dataset, Experiment, Run, SessionLocal, get_db
+from forge.api.models.database import Dataset, Experiment, FeatureSet, Run, RunEnvironment, SessionLocal, get_db
 from forge.api.models.schemas import (
+    EnvironmentDiffResponse,
     ExperimentCreateRequest,
     ExperimentDetailResponse,
     ExperimentListResponse,
     ExperimentResponse,
+    ReproducibilityReport,
+    ReproduceResponse,
+    RunEnvironmentResponse,
     RunResponse,
 )
+from forge.api.services.reproducibility import diff_environments, verify_reproducibility
 from forge.api.services.training import run_experiment_run
 
 logger = logging.getLogger(__name__)
@@ -57,6 +62,7 @@ def create_experiment(
             model_type=run_config.model_type,
             hyperparameters=run_config.hyperparameters,
             feature_engineering=run_config.feature_engineering,
+            feature_set_id=run_config.feature_set_id,
             status="pending",
         )
         db.add(run)
@@ -90,6 +96,41 @@ def list_experiments(
     return ExperimentListResponse(
         experiments=[ExperimentResponse.model_validate(e) for e in experiments],
         count=len(experiments),
+    )
+
+
+@router.get("/compare-environments", response_model=EnvironmentDiffResponse)
+def compare_environments(
+    run_a: UUID,
+    run_b: UUID,
+    db: Session = Depends(get_db),
+) -> EnvironmentDiffResponse:
+    """Diff two run environments side-by-side.
+
+    Shows which packages were added, removed, or changed between the
+    two runs, plus field-level diffs and a reproducibility report.
+    """
+    env_a = db.query(RunEnvironment).filter(RunEnvironment.run_id == run_a).first()
+    env_b = db.query(RunEnvironment).filter(RunEnvironment.run_id == run_b).first()
+
+    if env_a is None and env_b is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No environment data found for either run",
+        )
+
+    diff = diff_environments(env_a, env_b)
+    repro = verify_reproducibility(run_a, run_b, db)
+
+    return EnvironmentDiffResponse(
+        run_a=RunEnvironmentResponse.model_validate(env_a) if env_a else None,
+        run_b=RunEnvironmentResponse.model_validate(env_b) if env_b else None,
+        packages_added=diff["packages_added"],
+        packages_removed=diff["packages_removed"],
+        packages_changed=diff["packages_changed"],
+        field_diffs=diff["field_diffs"],
+        environments_identical=diff["environments_identical"],
+        reproducibility=ReproducibilityReport(**repro),
     )
 
 
@@ -206,3 +247,94 @@ def trigger_experiment_runs(
         updated_at=experiment.updated_at,
         runs=[RunResponse.model_validate(r) for r in all_runs],
     )
+
+
+# ---------------------------------------------------------------------------
+# Reproducibility endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{experiment_id}/runs/{run_id}/environment",
+    response_model=RunEnvironmentResponse,
+)
+def get_run_environment(
+    experiment_id: UUID,
+    run_id: UUID,
+    db: Session = Depends(get_db),
+) -> RunEnvironmentResponse:
+    """Get the full environment snapshot for a specific run."""
+    run = db.query(Run).filter(Run.id == run_id, Run.experiment_id == experiment_id).first()
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run {run_id} not found")
+
+    env = db.query(RunEnvironment).filter(RunEnvironment.run_id == run_id).first()
+    if env is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No environment captured for run {run_id}",
+        )
+
+    return RunEnvironmentResponse.model_validate(env)
+
+
+@router.get(
+    "/{experiment_id}/runs/{run_id}/reproduce",
+    response_model=ReproduceResponse,
+)
+def get_reproduce_spec(
+    experiment_id: UUID,
+    run_id: UUID,
+    db: Session = Depends(get_db),
+) -> ReproduceResponse:
+    """Generate a reproduction specification for a training run.
+
+    Returns the git SHA, a shell command to reproduce, data version hash,
+    feature set info, and any warnings about reproducibility.
+    """
+    run = db.query(Run).filter(Run.id == run_id, Run.experiment_id == experiment_id).first()
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run {run_id} not found")
+
+    env = db.query(RunEnvironment).filter(RunEnvironment.run_id == run_id).first()
+
+    warnings: list[str] = []
+    git_sha = env.git_sha if env else None
+    random_seed = env.random_seed if env else 42
+    env_hash = env.env_hash if env else None
+
+    if env and env.git_dirty:
+        warnings.append("git_dirty was True — uncommitted changes may affect results")
+    if not git_sha:
+        warnings.append("No git SHA captured — cannot pin exact code version")
+
+    # Look up feature set name if present
+    feature_set_name: str | None = None
+    if run.feature_set_id:
+        fs = db.query(FeatureSet).filter(FeatureSet.id == run.feature_set_id).first()
+        feature_set_name = f"{fs.name}_v{fs.version}" if fs else str(run.feature_set_id)
+
+    # Build reproduction command
+    checkout = f"git checkout {git_sha}" if git_sha else "# git SHA not available"
+    hyperparams_json = str(run.hyperparameters or {}).replace("'", '"')
+    command = (
+        f"{checkout} && "
+        f"pip install -r requirements.txt && "
+        f"python -m forge.train "
+        f"--experiment-id {experiment_id} "
+        f"--run-config '{hyperparams_json}' "
+        f"--model-type {run.model_type} "
+        f"--seed {random_seed}"
+    )
+
+    return ReproduceResponse(
+        git_sha=git_sha,
+        command=command,
+        data_version=f"sha256:{run.data_version_hash}" if run.data_version_hash else None,
+        feature_set=feature_set_name,
+        environment_hash=f"sha256:{env_hash}" if env_hash else None,
+        random_seed=random_seed,
+        warnings=warnings,
+    )
+
+

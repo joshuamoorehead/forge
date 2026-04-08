@@ -290,12 +290,144 @@ def make_compute_efficiency_frontier_tool(db: Session):
     return compute_efficiency_frontier
 
 
+def make_query_model_registry_tool(db: Session):
+    """Create the query_model_registry tool bound to a DB session."""
+
+    @tool
+    def query_model_registry(query: str) -> str:
+        """Query the model registry for registered models, versions, and stages.
+        Use for questions like 'what's in production?', 'compare model versions',
+        'what models are ready for promotion?', or 'show model history'.
+        The query can be a model name, 'all' to list everything, or 'production'
+        to show only production models."""
+        from forge.api.models.database import ModelVersion, RegisteredModel
+        from forge.api.services.model_registry import list_models, get_model_history
+
+        if query.lower() in ("all", "list", ""):
+            models = list_models(db)
+            if not models:
+                return "No models registered in the registry."
+            return json.dumps(models, indent=2, default=str)
+
+        if query.lower() == "production":
+            models = list_models(db)
+            prod_models = [m for m in models if m["production_version"] is not None]
+            if not prod_models:
+                return "No models currently in production."
+            return json.dumps(prod_models, indent=2, default=str)
+
+        if query.lower() in ("staging", "ready for promotion"):
+            versions = (
+                db.query(ModelVersion)
+                .filter(ModelVersion.stage == "staging")
+                .all()
+            )
+            if not versions:
+                return "No models currently in staging."
+            result = []
+            for v in versions:
+                model = db.query(RegisteredModel).filter(RegisteredModel.id == v.model_id).first()
+                result.append({
+                    "model_name": model.name if model else "unknown",
+                    "version": v.version,
+                    "stage": v.stage,
+                    "metrics": v.metrics_snapshot,
+                })
+            return json.dumps(result, indent=2, default=str)
+
+        # Try as model name
+        try:
+            model, versions, history = get_model_history(db, query)
+            result = {
+                "model_name": model.name,
+                "description": model.description,
+                "versions": [
+                    {
+                        "version": v.version,
+                        "stage": v.stage,
+                        "metrics": v.metrics_snapshot,
+                        "run_id": str(v.run_id),
+                        "created_at": str(v.created_at),
+                    }
+                    for v in versions
+                ],
+                "recent_transitions": [
+                    {
+                        "version_id": str(h.model_version_id),
+                        "from": h.from_stage,
+                        "to": h.to_stage,
+                        "reason": h.reason,
+                        "at": str(h.changed_at),
+                    }
+                    for h in history[:10]
+                ],
+            }
+            return json.dumps(result, indent=2, default=str)
+        except ValueError:
+            return f"No model found with name '{query}'. Use 'all' to list registered models."
+
+    return query_model_registry
+
+
+def make_check_drift_tool(db: Session):
+    """Create the check_drift tool bound to a DB session."""
+
+    @tool
+    def check_drift(query: str) -> str:
+        """Check for data or model drift. Use for questions like 'is SPY data drifting?',
+        'which features are most unstable?', or 'should I retrain the production model?'.
+        Pass a dataset name, 'summary', or 'all' to get drift reports."""
+        from forge.api.services.drift_detection import get_drift_summary, list_drift_reports
+        from forge.api.models.database import Dataset, DriftReport
+
+        if query.lower() in ("summary", "all", ""):
+            summary = get_drift_summary(db)
+            if summary["total_reports"] == 0:
+                return "No drift reports found. Run drift detection first via POST /api/drift/detect."
+            return json.dumps(summary, indent=2, default=str)
+
+        # Try finding reports for a dataset by name
+        datasets = db.query(Dataset).filter(Dataset.name.ilike(f"%{query}%")).all()
+        if not datasets:
+            return f"No datasets found matching '{query}'. Try 'summary' for an overview."
+
+        results = []
+        for ds in datasets:
+            reports = list_drift_reports(db, dataset_id=ds.id, limit=5)
+            for r in reports:
+                feature_scores = r.feature_scores or {}
+                # Find top drifted features
+                top_drifted = feature_scores.get("top_drifted", [])
+                if not top_drifted and isinstance(feature_scores, dict):
+                    # For data_drift reports, extract from per-feature scores
+                    per_feat = {k: v for k, v in feature_scores.items() if isinstance(v, dict) and v.get("is_drifted")}
+                    top_drifted = [{"feature": k, "p_value": v.get("p_value")} for k, v in sorted(per_feat.items(), key=lambda x: x[1].get("p_value", 1))[:3]]
+
+                results.append({
+                    "dataset": ds.name,
+                    "report_type": r.report_type,
+                    "overall_score": r.overall_drift_score,
+                    "is_drifted": r.is_drifted,
+                    "top_drifted_features": top_drifted,
+                    "created_at": str(r.created_at),
+                })
+
+        if not results:
+            return f"No drift reports found for datasets matching '{query}'. Run drift detection first."
+
+        return json.dumps(results, indent=2, default=str)
+
+    return check_drift
+
+
 def build_tools(db: Session) -> list:
-    """Build all five agent tools bound to the given database session."""
+    """Build all agent tools bound to the given database session."""
     return [
         make_query_experiments_tool(db),
         make_compare_runs_tool(db),
         make_search_similar_tool(db),
         make_get_ops_summary_tool(db),
         make_compute_efficiency_frontier_tool(db),
+        make_query_model_registry_tool(db),
+        make_check_drift_tool(db),
     ]

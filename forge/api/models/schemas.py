@@ -65,9 +65,10 @@ class RunConfigRequest(BaseModel):
     """Configuration for a single training run within an experiment."""
 
     run_name: str | None = None
-    model_type: str = Field(..., pattern="^(xgboost|random_forest|lstm)$")
+    model_type: str = Field(..., pattern="^(xgboost|random_forest|lstm|tcn|cnn_lstm|transformer)$")
     hyperparameters: dict = Field(default_factory=dict)
     feature_engineering: dict | None = None
+    feature_set_id: UUID | None = None
 
 
 class ExperimentCreateRequest(BaseModel):
@@ -89,6 +90,8 @@ class RunResponse(BaseModel):
     hyperparameters: dict
     feature_engineering: dict | None
 
+    feature_set_id: str | None = None
+
     # ML metrics
     accuracy: float | None = None
     precision_score: float | None = None
@@ -107,6 +110,9 @@ class RunResponse(BaseModel):
     throughput_samples_per_sec: float | None = None
     training_time_seconds: float | None = None
     efficiency_score: float | None = None
+
+    # Reproducibility
+    data_version_hash: str | None = None
 
     # External integrations
     wandb_run_id: str | None = None
@@ -311,11 +317,297 @@ class DashboardSummaryResponse(BaseModel):
     active_experiments: int
     ops_alerts_24h: int
     weekly_llm_cost: float
+    drift_alerts_7d: int = 0
 
 
 # ---------------------------------------------------------------------------
 # Agent / Analysis schemas
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Feature Store schemas
+# ---------------------------------------------------------------------------
+
+
+class FeatureSetCreateRequest(BaseModel):
+    """Request body for POST /api/features/register."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
+    feature_config: dict = Field(..., description="Declarative feature engineering config")
+
+
+class FeatureComputeRequest(BaseModel):
+    """Request body for POST /api/features/{id}/compute."""
+
+    dataset_id: UUID
+
+
+class FeatureRegistryResponse(BaseModel):
+    """Response model for a feature store registry entry."""
+
+    id: UUID
+    feature_set_id: UUID
+    dataset_id: UUID
+    storage_path: str | None = None
+    row_count: int | None = None
+    computed_at: datetime | None = None
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class FeatureSetResponse(BaseModel):
+    """Response model for a single feature set."""
+
+    id: UUID
+    name: str
+    version: int
+    description: str | None = None
+    feature_config: dict
+    feature_columns: list[str] | None = None
+    created_at: datetime | None = None
+    is_active: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class FeatureSetDetailResponse(FeatureSetResponse):
+    """Feature set with registry entries showing which datasets it's been computed for."""
+
+    registry_entries: list[FeatureRegistryResponse] = []
+
+
+class FeatureSetListResponse(BaseModel):
+    """Response model for listing feature sets."""
+
+    feature_sets: list[FeatureSetResponse]
+    count: int
+
+
+class FeatureSetCompareResponse(BaseModel):
+    """Diff between two feature sets."""
+
+    feature_set_a: dict
+    feature_set_b: dict
+    columns_added: list[str]
+    columns_removed: list[str]
+    config_added: dict
+    config_removed: dict
+    config_changed: dict
+
+
+# ---------------------------------------------------------------------------
+# Model Registry schemas
+# ---------------------------------------------------------------------------
+
+
+class ModelRegisterRequest(BaseModel):
+    """Request body for POST /api/models/register."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
+
+
+class ModelVersionCreateRequest(BaseModel):
+    """Request body for POST /api/models/{name}/versions."""
+
+    run_id: UUID
+    tags: dict | None = None
+
+
+class ModelStageTransitionRequest(BaseModel):
+    """Request body for PATCH /api/models/{name}/versions/{version}/stage."""
+
+    stage: str = Field(..., pattern="^(staging|production|archived)$")
+    reason: str | None = None
+
+
+class ModelStageHistoryResponse(BaseModel):
+    """Response model for a stage transition history entry."""
+
+    id: UUID
+    model_version_id: UUID
+    from_stage: str
+    to_stage: str
+    changed_at: datetime | None = None
+    reason: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ModelVersionResponse(BaseModel):
+    """Response model for a single model version."""
+
+    id: UUID
+    model_id: UUID
+    version: int
+    run_id: UUID
+    stage: str
+    stage_changed_at: datetime | None = None
+    stage_changed_by: str | None = None
+    s3_artifact_path: str | None = None
+    model_size_mb: float | None = None
+    metrics_snapshot: dict | None = None
+    tags: dict | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class RegisteredModelResponse(BaseModel):
+    """Response model for a registered model."""
+
+    id: UUID
+    name: str
+    description: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ModelDetailResponse(RegisteredModelResponse):
+    """Model with all versions and stage history."""
+
+    versions: list[ModelVersionResponse] = []
+    stage_history: list[ModelStageHistoryResponse] = []
+
+
+class ModelListItem(BaseModel):
+    """Summary of a registered model for listing."""
+
+    id: str
+    name: str
+    description: str | None = None
+    version_count: int
+    production_version: int | None = None
+    production_accuracy: float | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ModelListResponse(BaseModel):
+    """Response model for listing registered models."""
+
+    models: list[ModelListItem]
+    count: int
+
+
+class ModelVersionCompareResponse(BaseModel):
+    """Side-by-side version comparison with deltas."""
+
+    version_a: dict
+    version_b: dict
+    metrics: dict
+
+
+# ---------------------------------------------------------------------------
+# Drift Detection schemas
+# ---------------------------------------------------------------------------
+
+
+class DriftDetectRequest(BaseModel):
+    """Request body for POST /api/drift/detect."""
+
+    reference_dataset_id: UUID
+    current_dataset_id: UUID
+    report_type: str = Field(..., pattern="^(data_drift|prediction_drift|feature_drift)$")
+    model_version_id: UUID | None = None
+    features: list[str] | None = None
+    threshold: float | None = None
+
+
+class DriftReportResponse(BaseModel):
+    """Response model for a drift report."""
+
+    id: UUID
+    dataset_id: UUID
+    reference_dataset_id: UUID
+    report_type: str
+    model_version_id: UUID | None = None
+    overall_drift_score: float | None = None
+    is_drifted: str | None = None
+    feature_scores: dict | None = None
+    config: dict | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DriftReportListResponse(BaseModel):
+    """Response model for listing drift reports."""
+
+    reports: list[DriftReportResponse]
+    count: int
+
+
+class DriftSummaryResponse(BaseModel):
+    """High-level drift summary."""
+
+    total_reports: int
+    drifted_count: int
+    datasets_with_drift: int
+    by_type: dict[str, int]
+    last_check: str | None = None
+    days: int
+
+
+# ---------------------------------------------------------------------------
+# Reproducibility schemas
+# ---------------------------------------------------------------------------
+
+
+class RunEnvironmentResponse(BaseModel):
+    """Response model for a run's captured environment snapshot."""
+
+    id: UUID
+    run_id: UUID
+    git_sha: str | None = None
+    git_branch: str | None = None
+    git_dirty: bool | None = None
+    python_version: str | None = None
+    package_versions: dict[str, str] | None = None
+    docker_image_tag: str | None = None
+    random_seed: int | None = None
+    env_hash: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ReproduceResponse(BaseModel):
+    """Reproduction specification for a training run."""
+
+    git_sha: str | None = None
+    command: str
+    data_version: str | None = None
+    feature_set: str | None = None
+    environment_hash: str | None = None
+    random_seed: int | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ReproducibilityReport(BaseModel):
+    """Report comparing reproducibility factors between two runs."""
+
+    verdict: str
+    factors: dict[str, dict]
+    warnings: list[str] = Field(default_factory=list)
+
+
+class EnvironmentDiffResponse(BaseModel):
+    """Diff between two run environments."""
+
+    run_a: RunEnvironmentResponse | None = None
+    run_b: RunEnvironmentResponse | None = None
+    packages_added: dict[str, str] = Field(default_factory=dict)
+    packages_removed: dict[str, str] = Field(default_factory=dict)
+    packages_changed: dict[str, dict] = Field(default_factory=dict)
+    field_diffs: dict[str, dict] = Field(default_factory=dict)
+    environments_identical: bool = False
+    reproducibility: ReproducibilityReport | None = None
 
 
 class AgentQueryRequest(BaseModel):

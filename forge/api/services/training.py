@@ -21,7 +21,18 @@ from xgboost import XGBClassifier
 
 from forge.api.models.database import Dataset, Experiment, Run
 from forge.api.services.embeddings import embed_run
+from forge.api.services.metrics import (
+    EXPERIMENTS_TOTAL,
+    INFERENCE_LATENCY_SECONDS,
+    TRAINING_DURATION_SECONDS,
+)
 from forge.api.services.profiler import profile_model
+from forge.api.services.reproducibility import (
+    capture_environment,
+    compute_data_hash,
+    set_all_seeds,
+    store_environment,
+)
 from forge.api.services.s3_client import upload_model_artifact
 from forge.api.services.wandb_tracker import WandbTracker
 
@@ -133,6 +144,193 @@ class TimeSeriesLSTM(nn.Module):
 
 
 # ---------------------------------------------------------------------------
+# TCN — Temporal Convolutional Network with causal dilated convolutions
+# ---------------------------------------------------------------------------
+
+
+class CausalConv1dBlock(nn.Module):
+    """Single causal convolution block with dilation, residual connection, and dropout."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        dilation: int,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.padding = (kernel_size - 1) * dilation
+        self.conv = nn.Conv1d(
+            in_channels, out_channels,
+            kernel_size=kernel_size,
+            dilation=dilation,
+            padding=self.padding,
+        )
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.residual = nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass with causal trimming: (batch, channels, seq_len) → same shape."""
+        out = self.conv(x)
+        # Trim future timesteps to enforce causality
+        out = out[:, :, :x.size(2)]
+        out = self.relu(out)
+        out = self.dropout(out)
+        return out + self.residual(x)
+
+
+class TimeSeriesTCN(nn.Module):
+    """Temporal Convolutional Network for binary classification.
+
+    Uses exponentially increasing dilation rates (1, 2, 4, 8...) so the
+    receptive field covers the full input window without deep stacking.
+    """
+
+    def __init__(
+        self,
+        input_size: int,
+        num_channels: int = 64,
+        num_layers: int = 4,
+        kernel_size: int = 3,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        layers: list[nn.Module] = []
+        for i in range(num_layers):
+            in_ch = input_size if i == 0 else num_channels
+            layers.append(CausalConv1dBlock(in_ch, num_channels, kernel_size, dilation=2**i, dropout=dropout))
+        self.network = nn.Sequential(*layers)
+        self.fc = nn.Linear(num_channels, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward: (batch, seq_len, features) → (batch, 1)."""
+        # Conv1d expects (batch, channels, seq_len)
+        out = x.transpose(1, 2)
+        out = self.network(out)
+        # Global average pooling over time dimension
+        out = out.mean(dim=2)
+        return self.sigmoid(self.fc(out))
+
+
+# ---------------------------------------------------------------------------
+# CNN-LSTM — Conv1D feature extractor → LSTM sequence model
+# ---------------------------------------------------------------------------
+
+
+class TimeSeriesCNNLSTM(nn.Module):
+    """Hybrid Conv1D + LSTM for binary classification.
+
+    Conv1D layers extract local patterns (e.g., candlestick formations),
+    then LSTM captures temporal dependencies across the extracted features.
+    """
+
+    def __init__(
+        self,
+        input_size: int,
+        cnn_filters: int = 64,
+        cnn_kernel_size: int = 3,
+        lstm_hidden: int = 64,
+        lstm_layers: int = 1,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.cnn = nn.Sequential(
+            nn.Conv1d(input_size, cnn_filters, kernel_size=cnn_kernel_size, padding=cnn_kernel_size // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv1d(cnn_filters, cnn_filters, kernel_size=cnn_kernel_size, padding=cnn_kernel_size // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+        )
+        self.lstm = nn.LSTM(
+            input_size=cnn_filters,
+            hidden_size=lstm_hidden,
+            num_layers=lstm_layers,
+            batch_first=True,
+            dropout=dropout if lstm_layers > 1 else 0.0,
+        )
+        self.fc = nn.Linear(lstm_hidden, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward: (batch, seq_len, features) → (batch, 1)."""
+        # CNN expects (batch, channels, seq_len)
+        cnn_out = self.cnn(x.transpose(1, 2))
+        # Back to (batch, seq_len, channels) for LSTM
+        lstm_in = cnn_out.transpose(1, 2)
+        _, (hidden, _) = self.lstm(lstm_in)
+        return self.sigmoid(self.fc(hidden[-1]))
+
+
+# ---------------------------------------------------------------------------
+# Transformer encoder for time-series classification
+# ---------------------------------------------------------------------------
+
+
+class PositionalEncoding(nn.Module):
+    """Sinusoidal positional encoding for sequence ordering."""
+
+    def __init__(self, d_model: int, max_len: int = 500, dropout: float = 0.1):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term[:d_model // 2]) if d_model % 2 else torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)  # (1, max_len, d_model)
+        self.register_buffer("pe", pe)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Add positional encoding: (batch, seq_len, d_model) → same shape."""
+        x = x + self.pe[:, :x.size(1)]
+        return self.dropout(x)
+
+
+class TimeSeriesTransformer(nn.Module):
+    """Transformer encoder for binary classification on time-series.
+
+    Projects input features to d_model dimensions, adds sinusoidal
+    positional encoding, then applies multi-head self-attention layers.
+    """
+
+    def __init__(
+        self,
+        input_size: int,
+        d_model: int = 64,
+        nhead: int = 4,
+        num_layers: int = 2,
+        dim_feedforward: int = 128,
+        dropout: float = 0.1,
+    ):
+        super().__init__()
+        self.input_proj = nn.Linear(input_size, d_model)
+        self.pos_encoder = PositionalEncoding(d_model, dropout=dropout)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.fc = nn.Linear(d_model, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward: (batch, seq_len, features) → (batch, 1)."""
+        out = self.input_proj(x)
+        out = self.pos_encoder(out)
+        out = self.transformer_encoder(out)
+        # Mean pooling over the sequence dimension
+        out = out.mean(dim=1)
+        return self.sigmoid(self.fc(out))
+
+
+# ---------------------------------------------------------------------------
 # Model trainers
 # ---------------------------------------------------------------------------
 
@@ -191,32 +389,25 @@ def _build_lstm_sequences(
     return np.array(sequences), np.array(targets)
 
 
-def train_lstm(
-    x_train: np.ndarray,
-    y_train: np.ndarray,
-    x_val: np.ndarray,
-    y_val: np.ndarray,
+def _train_pytorch_model(
+    model: nn.Module,
+    x_train_seq: np.ndarray,
+    y_train_seq: np.ndarray,
+    x_val_seq: np.ndarray,
+    y_val_seq: np.ndarray,
     hyperparams: dict,
     epoch_callback: Callable[[int, float, float], None] | None = None,
-) -> TimeSeriesLSTM:
-    """Train a 2-layer LSTM for binary classification.
+) -> nn.Module:
+    """Generic PyTorch training loop for binary classification models.
 
-    Converts flat features into windowed sequences, trains with BCE loss,
-    and uses early stopping based on validation loss.
+    Handles mini-batch training with BCE loss, validation, early stopping,
+    and optional epoch callbacks for W&B logging. Works for any nn.Module
+    that takes (batch, seq_len, features) input and returns (batch, 1) output.
     """
-    window_size = hyperparams.get("window_size", 30)
-    hidden_size = hyperparams.get("hidden_size", 128)
-    num_layers = hyperparams.get("num_layers", 2)
-    dropout = hyperparams.get("dropout", 0.2)
     lr = hyperparams.get("learning_rate", 0.001)
     epochs = hyperparams.get("epochs", 50)
     batch_size = hyperparams.get("batch_size", 32)
-
-    x_train_seq, y_train_seq = _build_lstm_sequences(x_train, y_train, window_size)
-    x_val_seq, y_val_seq = _build_lstm_sequences(x_val, y_val, window_size)
-
-    input_size = x_train_seq.shape[2]
-    model = TimeSeriesLSTM(input_size, hidden_size, num_layers, dropout)
+    patience = hyperparams.get("patience", 5)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.BCELoss()
@@ -227,12 +418,10 @@ def train_lstm(
     y_val_t = torch.tensor(y_val_seq, dtype=torch.float32).unsqueeze(1)
 
     best_val_loss = float("inf")
-    patience = 5
     patience_counter = 0
 
     model.train()
     for epoch in range(epochs):
-        # Mini-batch training
         indices = torch.randperm(len(x_train_t))
         epoch_loss = 0.0
         n_batches = 0
@@ -251,7 +440,6 @@ def train_lstm(
             epoch_loss += loss.item()
             n_batches += 1
 
-        # Validation
         model.eval()
         with torch.no_grad():
             val_preds = model(x_val_t)
@@ -278,6 +466,113 @@ def train_lstm(
 
     model.eval()
     return model
+
+
+def train_lstm(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    hyperparams: dict,
+    epoch_callback: Callable[[int, float, float], None] | None = None,
+) -> TimeSeriesLSTM:
+    """Train a 2-layer LSTM for binary classification.
+
+    Converts flat features into windowed sequences, trains with BCE loss,
+    and uses early stopping based on validation loss.
+    """
+    window_size = hyperparams.get("window_size", 30)
+    hidden_size = hyperparams.get("hidden_size", 128)
+    num_layers = hyperparams.get("num_layers", 2)
+    dropout = hyperparams.get("dropout", 0.2)
+
+    x_train_seq, y_train_seq = _build_lstm_sequences(x_train, y_train, window_size)
+    x_val_seq, y_val_seq = _build_lstm_sequences(x_val, y_val, window_size)
+
+    input_size = x_train_seq.shape[2]
+    model = TimeSeriesLSTM(input_size, hidden_size, num_layers, dropout)
+    return _train_pytorch_model(model, x_train_seq, y_train_seq, x_val_seq, y_val_seq, hyperparams, epoch_callback)
+
+
+def train_tcn(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    hyperparams: dict,
+    epoch_callback: Callable[[int, float, float], None] | None = None,
+) -> TimeSeriesTCN:
+    """Train a Temporal Convolutional Network for binary classification.
+
+    Converts flat features into windowed sequences, then trains with
+    causal dilated convolutions and early stopping.
+    """
+    window_size = hyperparams.get("window_size", 30)
+    num_channels = hyperparams.get("num_channels", 64)
+    num_layers = hyperparams.get("num_layers", 4)
+    kernel_size = hyperparams.get("kernel_size", 3)
+    dropout = hyperparams.get("dropout", 0.2)
+
+    x_train_seq, y_train_seq = _build_lstm_sequences(x_train, y_train, window_size)
+    x_val_seq, y_val_seq = _build_lstm_sequences(x_val, y_val, window_size)
+
+    input_size = x_train_seq.shape[2]
+    model = TimeSeriesTCN(input_size, num_channels, num_layers, kernel_size, dropout)
+    return _train_pytorch_model(model, x_train_seq, y_train_seq, x_val_seq, y_val_seq, hyperparams, epoch_callback)
+
+
+def train_cnn_lstm(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    hyperparams: dict,
+    epoch_callback: Callable[[int, float, float], None] | None = None,
+) -> TimeSeriesCNNLSTM:
+    """Train a CNN-LSTM hybrid for binary classification.
+
+    Conv1D extracts local patterns, LSTM captures temporal dependencies.
+    """
+    window_size = hyperparams.get("window_size", 30)
+    cnn_filters = hyperparams.get("cnn_filters", 64)
+    cnn_kernel_size = hyperparams.get("cnn_kernel_size", 3)
+    lstm_hidden = hyperparams.get("lstm_hidden", 64)
+    lstm_layers = hyperparams.get("lstm_layers", 1)
+    dropout = hyperparams.get("dropout", 0.2)
+
+    x_train_seq, y_train_seq = _build_lstm_sequences(x_train, y_train, window_size)
+    x_val_seq, y_val_seq = _build_lstm_sequences(x_val, y_val, window_size)
+
+    input_size = x_train_seq.shape[2]
+    model = TimeSeriesCNNLSTM(input_size, cnn_filters, cnn_kernel_size, lstm_hidden, lstm_layers, dropout)
+    return _train_pytorch_model(model, x_train_seq, y_train_seq, x_val_seq, y_val_seq, hyperparams, epoch_callback)
+
+
+def train_transformer(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    hyperparams: dict,
+    epoch_callback: Callable[[int, float, float], None] | None = None,
+) -> TimeSeriesTransformer:
+    """Train a Transformer encoder for binary classification on time-series.
+
+    Uses sinusoidal positional encoding + multi-head self-attention.
+    """
+    window_size = hyperparams.get("window_size", 30)
+    d_model = hyperparams.get("d_model", 64)
+    nhead = hyperparams.get("nhead", 4)
+    num_layers = hyperparams.get("num_layers", 2)
+    dim_feedforward = hyperparams.get("dim_feedforward", 128)
+    dropout = hyperparams.get("dropout", 0.1)
+
+    x_train_seq, y_train_seq = _build_lstm_sequences(x_train, y_train, window_size)
+    x_val_seq, y_val_seq = _build_lstm_sequences(x_val, y_val, window_size)
+
+    input_size = x_train_seq.shape[2]
+    model = TimeSeriesTransformer(input_size, d_model, nhead, num_layers, dim_feedforward, dropout)
+    return _train_pytorch_model(model, x_train_seq, y_train_seq, x_val_seq, y_val_seq, hyperparams, epoch_callback)
 
 
 # ---------------------------------------------------------------------------
@@ -317,14 +612,34 @@ def evaluate_model(
 # Run orchestrator
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Default hyperparameter configs — stored with runs for reproducibility
+# ---------------------------------------------------------------------------
+
+DEFAULT_CONFIGS: dict[str, dict] = {
+    "xgboost": {"n_estimators": 500, "max_depth": 6, "learning_rate": 0.1, "early_stopping_rounds": 20},
+    "random_forest": {"n_estimators": 200, "max_depth": 10, "min_samples_split": 5},
+    "lstm": {"window_size": 30, "hidden_size": 128, "num_layers": 2, "dropout": 0.2, "learning_rate": 0.001, "epochs": 50, "batch_size": 32},
+    "tcn": {"window_size": 30, "num_channels": 64, "num_layers": 4, "kernel_size": 3, "dropout": 0.2, "learning_rate": 0.001, "epochs": 50, "batch_size": 32},
+    "cnn_lstm": {"window_size": 30, "cnn_filters": 64, "cnn_kernel_size": 3, "lstm_hidden": 64, "lstm_layers": 1, "dropout": 0.2, "learning_rate": 0.001, "epochs": 50, "batch_size": 32},
+    "transformer": {"window_size": 30, "d_model": 64, "nhead": 4, "num_layers": 2, "dim_feedforward": 128, "dropout": 0.1, "learning_rate": 0.001, "epochs": 50, "batch_size": 32},
+}
+
+# Model types that use windowed sequence input
+SEQUENCE_MODEL_TYPES = {"lstm", "tcn", "cnn_lstm", "transformer"}
+
+
 def _make_trainers(
     epoch_callback: Callable[[int, float, float], None] | None = None,
 ) -> dict:
-    """Build trainer dispatch dict, threading epoch_callback to LSTM."""
+    """Build trainer dispatch dict, threading epoch_callback to PyTorch models."""
     return {
         "xgboost": lambda xt, yt, xv, yv, hp: train_xgboost(xt, yt, xv, yv, hp),
         "random_forest": lambda xt, yt, xv, yv, hp: train_random_forest(xt, yt, hp),
         "lstm": lambda xt, yt, xv, yv, hp: train_lstm(xt, yt, xv, yv, hp, epoch_callback),
+        "tcn": lambda xt, yt, xv, yv, hp: train_tcn(xt, yt, xv, yv, hp, epoch_callback),
+        "cnn_lstm": lambda xt, yt, xv, yv, hp: train_cnn_lstm(xt, yt, xv, yv, hp, epoch_callback),
+        "transformer": lambda xt, yt, xv, yv, hp: train_transformer(xt, yt, xv, yv, hp, epoch_callback),
     }
 
 
@@ -358,9 +673,18 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
     run.started_at = datetime.now(timezone.utc)
     db.commit()
 
+    # Reproducibility: set seeds before anything else (including model init)
+    hyperparams = run.hyperparameters or {}
+    seed = hyperparams.get("random_seed", 42)
+    set_all_seeds(seed)
+
+    # Capture and store environment snapshot
+    env_snapshot = capture_environment(random_seed=seed)
+    store_environment(db, run_id, env_snapshot)
+    db.commit()
+
     # Initialize W&B tracker (no-op if disabled)
     tracker = WandbTracker()
-    hyperparams = run.hyperparameters or {}
     tracker.init_run(
         project="forge",
         experiment_name=experiment.name,
@@ -370,9 +694,17 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
     )
 
     try:
-        # Load data from parquet
-        df = pd.read_parquet(dataset.s3_path)
+        # Load data — from feature store if feature_set_id is set, else raw parquet
+        if run.feature_set_id is not None:
+            from forge.api.services.feature_store import get_features
+            logger.info("Loading features from feature store (fs=%s, ds=%s)", run.feature_set_id, experiment.dataset_id)
+            df = get_features(db, run.feature_set_id, experiment.dataset_id)
+        else:
+            df = pd.read_parquet(dataset.s3_path)
         df = create_target(df)
+
+        # Reproducibility: compute and store data version hash
+        run.data_version_hash = compute_data_hash(df)
 
         # Time-series split
         train_df, val_df, test_df = time_series_split(df)
@@ -391,11 +723,11 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
         training_time = time.time() - train_start
 
         # Evaluate
-        window_size = hyperparams.get("window_size", 30) if model_type == "lstm" else None
+        window_size = hyperparams.get("window_size", 30) if model_type in SEQUENCE_MODEL_TYPES else None
         metrics = evaluate_model(model, x_test, y_test, window_size)
 
         # Profile
-        if model_type == "lstm":
+        if model_type in SEQUENCE_MODEL_TYPES:
             sample = x_test[:window_size].reshape(1, window_size, x_test.shape[1])
         else:
             sample = x_test[:1]
@@ -444,6 +776,14 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
         db.refresh(run)
         logger.info("Run %s completed — accuracy=%.4f", run_id, metrics["accuracy"])
 
+        # Prometheus metrics
+        EXPERIMENTS_TOTAL.labels(model_type=model_type, status="completed").inc()
+        TRAINING_DURATION_SECONDS.labels(model_type=model_type).observe(training_time)
+        if profile.inference_latency_ms is not None:
+            INFERENCE_LATENCY_SECONDS.labels(model_type=model_type).observe(
+                profile.inference_latency_ms / 1000.0
+            )
+
         # Generate and store embedding for semantic search (best-effort)
         try:
             embed_run(run_id, db)
@@ -452,6 +792,7 @@ def run_experiment_run(run_id: UUID, db: Session) -> Run:
 
     except Exception:
         tracker.finish()  # clean up W&B run on failure
+        EXPERIMENTS_TOTAL.labels(model_type=run.model_type, status="failed").inc()
         run.status = "failed"
         run.completed_at = datetime.now(timezone.utc)
         db.commit()

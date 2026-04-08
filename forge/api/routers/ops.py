@@ -15,6 +15,7 @@ from forge.api.models.schemas import (
     OpsLogSummaryResponse,
 )
 from forge.api.services.anomaly import flag_anomalies
+from forge.api.services.metrics import LLM_COST_DOLLARS, OPS_ERRORS_TOTAL
 
 router = APIRouter(prefix="/api/ops", tags=["ops"])
 
@@ -50,6 +51,12 @@ async def create_log(
     db.add(log_entry)
     db.commit()
     db.refresh(log_entry)
+
+    # Prometheus: track errors and LLM costs
+    if request.log_level in ("ERROR", "CRITICAL"):
+        OPS_ERRORS_TOTAL.labels(project=request.project_name).inc()
+    if request.cost_usd and request.cost_usd > 0:
+        LLM_COST_DOLLARS.inc(request.cost_usd)
 
     return _ops_log_to_response(log_entry)
 

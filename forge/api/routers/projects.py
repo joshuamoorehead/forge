@@ -7,6 +7,7 @@ from sqlalchemy import func, case, text
 from sqlalchemy.orm import Session
 
 from forge.api.models.database import (
+    DriftReport,
     Experiment,
     GitEvent,
     OpsLog,
@@ -350,9 +351,20 @@ async def get_dashboard_summary(
         .scalar()
     ) or 0.0
 
+    # Drift alerts: drifted reports in last 7 days
+    drift_alerts = (
+        db.query(func.count(DriftReport.id))
+        .filter(
+            DriftReport.is_drifted == "true",
+            DriftReport.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+
     return DashboardSummaryResponse(
         total_projects=total_projects,
         active_experiments=active_experiments,
         ops_alerts_24h=ops_alerts,
         weekly_llm_cost=float(weekly_cost),
+        drift_alerts_7d=drift_alerts,
     )

@@ -6,21 +6,29 @@ import ActivityTimeline from "@/components/ActivityTimeline";
 import {
   fetchDashboardSummary,
   fetchActivityFeed,
+  fetchMetricsSummary,
   type DashboardSummaryResponse,
   type ActivityFeedItem,
+  type MetricsSummaryResponse,
 } from "@/lib/api";
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [feed, setFeed] = useState<ActivityFeedItem[]>([]);
+  const [metrics, setMetrics] = useState<MetricsSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchDashboardSummary(), fetchActivityFeed()])
-      .then(([s, f]) => {
+    Promise.all([
+      fetchDashboardSummary(),
+      fetchActivityFeed(),
+      fetchMetricsSummary().catch(() => null),
+    ])
+      .then(([s, f, m]) => {
         setSummary(s);
         setFeed(f.items);
+        setMetrics(m);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
       .finally(() => setLoading(false));
@@ -54,7 +62,7 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-5 gap-4 mb-8">
         <SummaryCard
           title="Projects Tracked"
           value={summary?.total_projects ?? 0}
@@ -73,7 +81,40 @@ export default function DashboardPage() {
           title="Weekly LLM Cost"
           value={`$${(summary?.weekly_llm_cost ?? 0).toFixed(2)}`}
         />
+        <SummaryCard
+          title="Drift Alerts (7d)"
+          value={summary?.drift_alerts_7d ?? 0}
+          accent={!!summary?.drift_alerts_7d}
+          subtitle={summary?.drift_alerts_7d ? "datasets drifted" : "all stable"}
+        />
       </div>
+
+      {/* API Health mini-card */}
+      {metrics && (
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-forge-card border border-forge-border rounded-xl p-4">
+            <p className="text-xs text-forge-muted uppercase tracking-wide">Total Requests</p>
+            <p className="text-2xl font-bold mt-1">{Math.round(metrics.total_requests).toLocaleString()}</p>
+          </div>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-4">
+            <p className="text-xs text-forge-muted uppercase tracking-wide">Error Rate</p>
+            <p className={`text-2xl font-bold mt-1 ${
+              metrics.error_rate_pct > 5 ? "text-red-400" : metrics.error_rate_pct > 1 ? "text-yellow-400" : "text-green-400"
+            }`}>
+              {metrics.error_rate_pct.toFixed(1)}%
+            </p>
+          </div>
+          <a
+            href="http://localhost:3001"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-forge-card border border-forge-border rounded-xl p-4 hover:border-forge-accent/50 transition-colors"
+          >
+            <p className="text-xs text-forge-muted uppercase tracking-wide">API Health</p>
+            <p className="text-sm text-forge-accent mt-2">Open Grafana Dashboard &rarr;</p>
+          </a>
+        </div>
+      )}
 
       {/* Activity feed */}
       <div className="bg-forge-card border border-forge-border rounded-xl p-5">
