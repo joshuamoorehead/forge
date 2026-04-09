@@ -21,5 +21,5 @@ COPY scripts/ scripts/
 EXPOSE 8000
 
 # Railway injects $PORT at runtime; fall back to 8000 for local Docker.
-# Run migrations before starting — handles DBs bootstrapped outside Alembic.
-CMD ["sh", "-c", "python scripts/migrate.py && uvicorn forge.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run migrations before starting — app starts regardless of migration outcome.
+CMD ["sh", "-c", "python scripts/migrate.py; uvicorn forge.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
