@@ -104,15 +104,10 @@ export default function DashboardPage() {
               {metrics.error_rate_pct.toFixed(1)}%
             </p>
           </div>
-          <a
-            href={process.env.NEXT_PUBLIC_GRAFANA_URL || "http://localhost:3001"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-forge-card border border-forge-border rounded-xl p-4 hover:border-forge-accent/50 transition-colors"
-          >
-            <p className="text-xs text-forge-muted uppercase tracking-wide">API Health</p>
-            <p className="text-sm text-forge-accent mt-2">Open Grafana Dashboard &rarr;</p>
-          </a>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-4">
+            <p className="text-xs text-forge-muted uppercase tracking-wide">Experiment Runs</p>
+            <p className="text-2xl font-bold mt-1">{Math.round(metrics.experiments_total).toLocaleString()}</p>
+          </div>
         </div>
       )}
 
