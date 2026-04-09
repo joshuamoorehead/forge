@@ -105,7 +105,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <a
-            href="http://localhost:3001"
+            href={process.env.NEXT_PUBLIC_GRAFANA_URL || "http://localhost:3001"}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-forge-card border border-forge-border rounded-xl p-4 hover:border-forge-accent/50 transition-colors"

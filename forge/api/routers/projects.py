@@ -184,17 +184,29 @@ async def get_project_detail(
         GitEventResponse.model_validate(evt) for evt in git_events_query
     ]
 
-    # Linked experiments: find experiments whose dataset name or experiment name
-    # contains the project name (loose link since there's no direct FK).
-    # Escape SQL LIKE wildcards to prevent pattern injection from URL paths.
+    # Linked experiments: match via experiment name OR dataset name containing
+    # the project name (loose link since there's no direct FK).
+    from forge.api.models.database import Dataset
     escaped_name = name.replace("%", r"\%").replace("_", r"\_")
     linked_experiments_query = (
         db.query(Experiment)
-        .filter(Experiment.name.ilike(f"%{escaped_name}%"))
+        .outerjoin(Dataset, Experiment.dataset_id == Dataset.id)
+        .filter(
+            Experiment.name.ilike(f"%{escaped_name}%")
+            | Dataset.name.ilike(f"%{escaped_name}%")
+        )
         .order_by(Experiment.created_at.desc())
         .limit(20)
         .all()
     )
+    # If no name-based matches, show all recent experiments as fallback
+    if not linked_experiments_query:
+        linked_experiments_query = (
+            db.query(Experiment)
+            .order_by(Experiment.created_at.desc())
+            .limit(10)
+            .all()
+        )
     linked_experiments = [
         ExperimentResponse.model_validate(exp) for exp in linked_experiments_query
     ]

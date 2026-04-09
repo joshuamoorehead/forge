@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fetchExperiments, type ExperimentResponse } from "@/lib/api";
 
 export default function ExperimentsPage() {
+  const router = useRouter();
   const [experiments, setExperiments] = useState<ExperimentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,8 @@ export default function ExperimentsPage() {
               {experiments.map((exp) => (
                 <tr
                   key={exp.id}
-                  className="border-b border-forge-border/50 hover:bg-forge-bg transition-colors"
+                  onClick={() => router.push(`/experiments/${exp.id}`)}
+                  className="border-b border-forge-border/50 hover:bg-forge-bg transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3">
                     <Link
