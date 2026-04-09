@@ -1,12 +1,16 @@
 """FastAPI application entry point."""
 
+import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from forge.api.routers import analysis, datasets, drift, experiments, feature_store, health, metrics, model_registry, ops, projects, webhooks
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Forge",
@@ -23,6 +27,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler — ensures CORS headers are sent even on unhandled 500s.
+# Without this, CORSMiddleware never wraps the raw exception response and browsers
+# block the response entirely due to missing Access-Control-Allow-Origin.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return a JSON 500 response so CORS middleware can attach headers."""
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
 
 # Prometheus auto-instrumentation: request count, latency histogram, error rate,
 # in-progress requests — exposed at GET /metrics
