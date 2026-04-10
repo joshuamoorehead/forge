@@ -199,17 +199,19 @@ export function fetchExperimentDetail(id: string): Promise<ExperimentDetailRespo
   return apiFetch<ExperimentDetailResponse>(`/api/experiments/${encodeURIComponent(id)}`);
 }
 
-export function sendAgentQuery(question: string): Promise<AgentQueryResponse> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const agentKey = process.env.NEXT_PUBLIC_AGENT_API_KEY;
-  if (agentKey) {
-    headers["Authorization"] = `Bearer ${agentKey}`;
-  }
-  return apiFetch<AgentQueryResponse>("/api/agent/query", {
+export async function sendAgentQuery(question: string): Promise<AgentQueryResponse> {
+  // Route through the Next.js server-side proxy at /api/agent which attaches
+  // the AGENT_API_KEY Bearer token. This keeps the secret off the client.
+  const res = await fetch("/api/agent", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `API ${res.status}: ${res.statusText}`);
+  }
+  return res.json() as Promise<AgentQueryResponse>;
 }
 
 // ---------------------------------------------------------------------------
