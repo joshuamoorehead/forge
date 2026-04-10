@@ -42,3 +42,9 @@ htmlcov/
 alembic/versions/__pycache__/
 .claude/
 PROBLEMS.md
+
+# Local data artifacts
+data/datasets/
+data/features/
+wandb/
+*.parquet
