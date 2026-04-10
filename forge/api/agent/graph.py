@@ -10,7 +10,7 @@ import os
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
@@ -97,21 +97,21 @@ def _call_tools(state: AgentState, tool_node: ToolNode) -> dict:
     }
 
 
-def build_agent_graph(tools: list, model_name: str = "gpt-4o-mini") -> StateGraph:
+def build_agent_graph(tools: list, model_name: str = "claude-sonnet-4-20250514") -> StateGraph:
     """Construct the LangGraph agent with the given tools.
 
     Args:
         tools: List of LangChain tool instances (already bound to a DB session).
-        model_name: OpenAI model to use for reasoning.
+        model_name: Anthropic model to use for reasoning.
 
     Returns:
         A compiled LangGraph StateGraph ready for invocation.
     """
-    openai_api_key = os.getenv("OPENAI_API_KEY", "")
-    llm = ChatOpenAI(
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    llm = ChatAnthropic(
         model=model_name,
         temperature=0,
-        api_key=openai_api_key,
+        api_key=anthropic_api_key,
     )
     llm_with_tools = llm.bind_tools(tools)
 

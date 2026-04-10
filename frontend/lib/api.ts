@@ -200,8 +200,14 @@ export function fetchExperimentDetail(id: string): Promise<ExperimentDetailRespo
 }
 
 export function sendAgentQuery(question: string): Promise<AgentQueryResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const agentKey = process.env.NEXT_PUBLIC_AGENT_API_KEY;
+  if (agentKey) {
+    headers["Authorization"] = `Bearer ${agentKey}`;
+  }
   return apiFetch<AgentQueryResponse>("/api/agent/query", {
     method: "POST",
+    headers,
     body: JSON.stringify({ question }),
   });
 }
