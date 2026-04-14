@@ -70,12 +70,12 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-forge-bg-raised border-r border-forge-border flex flex-col fixed top-0 left-0 h-full z-30">
       {/* Logo */}
-      <div className="px-5 py-5">
+      <div className="px-5 py-5 border-b border-forge-border">
         <h1 className="text-sm font-semibold text-forge-text tracking-tight">forge</h1>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 pb-3 overflow-y-auto">
+      <nav className="flex-1 px-3 pt-3 pb-3 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.label || "top"} className={group.label ? "mt-5" : ""}>
             {group.label && (

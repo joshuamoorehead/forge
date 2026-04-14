@@ -6,6 +6,7 @@ import Link from "next/link";
 import RunComparisonTable from "@/components/RunComparisonTable";
 import EfficiencyFrontier from "@/components/EfficiencyFrontier";
 import PageHeader from "@/components/PageHeader";
+import StatusBadge from "@/components/StatusBadge";
 import {
   fetchExperimentDetail,
   fetchModels,
@@ -145,19 +146,7 @@ export default function ExperimentDetailPage() {
       </div>
       <div className="flex items-center gap-4 mb-8">
         <h1 className="text-2xl font-semibold">{experiment.name}</h1>
-        <span
-          className={`text-2xs font-medium ${
-            experiment.status === "completed"
-              ? "text-forge-success"
-              : experiment.status === "running"
-              ? "text-forge-accent"
-              : experiment.status === "failed"
-              ? "text-forge-error"
-              : "text-forge-muted"
-          }`}
-        >
-          {experiment.status}
-        </span>
+        <StatusBadge status={experiment.status} />
       </div>
 
       {experiment.description && (
