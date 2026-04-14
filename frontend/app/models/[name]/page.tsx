@@ -136,7 +136,7 @@ export default function ModelDetailPage() {
                       <button
                         onClick={() => handleTransition(v.version, "staging")}
                         disabled={actionLoading !== null}
-                        className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-40"
+                        className="text-xs bg-forge-accent/10 text-forge-accent px-2 py-1 rounded hover:bg-forge-accent/20 transition-colors disabled:opacity-40"
                       >
                         {actionLoading === `${v.version}-staging` ? "..." : "Promote to Staging"}
                       </button>
@@ -145,7 +145,7 @@ export default function ModelDetailPage() {
                       <button
                         onClick={() => handleTransition(v.version, "production")}
                         disabled={actionLoading !== null}
-                        className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-40"
+                        className="text-xs bg-forge-success/10 text-forge-success px-2 py-1 rounded hover:bg-forge-success/20 transition-colors disabled:opacity-40"
                       >
                         {actionLoading === `${v.version}-production` ? "..." : "Promote to Production"}
                       </button>
@@ -154,7 +154,7 @@ export default function ModelDetailPage() {
                       <button
                         onClick={() => handleTransition(v.version, "archived")}
                         disabled={actionLoading !== null}
-                        className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded hover:bg-red-500/20 transition-colors disabled:opacity-40"
+                        className="text-xs bg-forge-error/10 text-forge-error px-2 py-1 rounded hover:bg-forge-error/20 transition-colors disabled:opacity-40"
                       >
                         Archive
                       </button>
@@ -229,7 +229,7 @@ export default function ModelDetailPage() {
                           {val.version_b != null ? (typeof val.version_b === "number" ? val.version_b.toFixed(4) : String(val.version_b)) : "—"}
                         </td>
                         <td className={`px-3 py-1.5 text-right font-mono ${
-                          val.delta != null && val.delta > 0 ? "text-emerald-400" : val.delta != null && val.delta < 0 ? "text-red-400" : "text-forge-muted"
+                          val.delta != null && val.delta > 0 ? "text-forge-success" : val.delta != null && val.delta < 0 ? "text-forge-error" : "text-forge-muted"
                         }`}>
                           {val.delta != null ? (val.delta > 0 ? "+" : "") + val.delta.toFixed(4) : "—"}
                         </td>

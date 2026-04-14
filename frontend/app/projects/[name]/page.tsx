@@ -116,7 +116,7 @@ function ActivityTab({ events }: { events: ProjectDetailResponse["git_events"] }
           <div key={evt.id} className="flex gap-4 relative">
             {/* Dot */}
             <div className="w-6 flex-shrink-0 flex justify-center pt-1.5 z-10">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-forge-card" />
+              <div className="w-2.5 h-2.5 rounded-full bg-forge-accent ring-4 ring-forge-card" />
             </div>
 
             {/* Content */}

@@ -219,10 +219,10 @@ export default function FeaturesPage() {
                         <span
                           className={`w-2 h-2 rounded-full ${
                             entry.status === "ready"
-                              ? "bg-emerald-400"
+                              ? "bg-forge-success"
                               : entry.status === "computing"
-                              ? "bg-blue-400"
-                              : "bg-red-400"
+                              ? "bg-forge-accent"
+                              : "bg-forge-error"
                           }`}
                         />
                         <span className="text-forge-muted font-mono">
@@ -300,7 +300,7 @@ export default function FeaturesPage() {
                 <div className="bg-forge-bg rounded-lg p-3 text-xs space-y-2">
                   {compareResult.columns_added.length > 0 && (
                     <div>
-                      <span className="text-emerald-400 font-medium">
+                      <span className="text-forge-success font-medium">
                         + Added columns:{" "}
                       </span>
                       <span className="text-forge-muted font-mono">
@@ -310,7 +310,7 @@ export default function FeaturesPage() {
                   )}
                   {compareResult.columns_removed.length > 0 && (
                     <div>
-                      <span className="text-red-400 font-medium">
+                      <span className="text-forge-error font-medium">
                         - Removed columns:{" "}
                       </span>
                       <span className="text-forge-muted font-mono">
@@ -320,7 +320,7 @@ export default function FeaturesPage() {
                   )}
                   {Object.keys(compareResult.config_changed).length > 0 && (
                     <div>
-                      <span className="text-yellow-400 font-medium">
+                      <span className="text-forge-warning font-medium">
                         ~ Changed config:{" "}
                       </span>
                       <pre className="text-forge-muted mt-1 ml-2">

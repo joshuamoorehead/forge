@@ -3,7 +3,7 @@
 import type { ActivityFeedItem } from "@/lib/api";
 
 const typeConfig: Record<string, { color: string; label: string }> = {
-  git_commit: { color: "bg-blue-400/80", label: "Commit" },
+  git_commit: { color: "bg-forge-accent", label: "Commit" },
   ops_log: { color: "bg-forge-warning", label: "Log" },
   experiment_completion: { color: "bg-forge-success", label: "Experiment" },
 };

@@ -87,7 +87,7 @@ export default function Sidebar() {
               {group.items.map((item) => {
                 const active = !item.external && isActive(item.href);
                 const cls = [
-                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors relative",
+                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-forge-accent focus-visible:outline-offset-[-2px]",
                   active
                     ? "bg-white/[0.06] text-forge-text font-medium"
                     : "text-forge-secondary hover:text-forge-text hover:bg-white/[0.03]",

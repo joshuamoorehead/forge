@@ -117,8 +117,8 @@ export default function DriftReportDetailPage() {
 
       {/* Top drifted features callout */}
       {topDrifted && topDrifted.length > 0 && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-yellow-400 mb-2">Top Drifted Features</h3>
+        <div className="bg-forge-warning/10 border border-forge-warning/20 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-semibold text-forge-warning mb-2">Top Drifted Features</h3>
           <div className="flex gap-4">
             {topDrifted.map((t, i) => (
               <div key={i} className="text-xs">
@@ -177,11 +177,11 @@ export default function DriftReportDetailPage() {
                       </td>
                       <td className="px-4 py-2">
                         {(s.is_drifted || s.drift_level === "significant") ? (
-                          <span className="text-red-400 font-medium">drifted</span>
+                          <span className="text-forge-error font-medium">drifted</span>
                         ) : s.drift_level === "moderate" ? (
-                          <span className="text-yellow-400 font-medium">moderate</span>
+                          <span className="text-forge-warning font-medium">moderate</span>
                         ) : (
-                          <span className="text-emerald-400">stable</span>
+                          <span className="text-forge-success">stable</span>
                         )}
                       </td>
                     </tr>
@@ -216,7 +216,7 @@ export default function DriftReportDetailPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-forge-muted w-12">Ref</span>
                       <div className="flex-1 bg-forge-bg rounded h-4 overflow-hidden">
-                        <div className="bg-blue-500/50 h-full rounded" style={{ width: `${Math.min(refWidth, 100)}%` }} />
+                        <div className="bg-forge-accent/50 h-full rounded" style={{ width: `${Math.min(refWidth, 100)}%` }} />
                       </div>
                       <span className="text-xs text-forge-muted w-20 text-right font-mono">{s.ref_mean?.toFixed(4) ?? "—"}</span>
                     </div>
