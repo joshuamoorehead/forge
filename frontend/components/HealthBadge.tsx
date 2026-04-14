@@ -1,9 +1,9 @@
 "use client";
 
-const healthColors: Record<string, { dot: string; bg: string; text: string; label: string }> = {
-  green:  { dot: "bg-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-400", label: "Healthy" },
-  yellow: { dot: "bg-amber-500",   bg: "bg-amber-500/10",   text: "text-amber-400",   label: "Warning" },
-  red:    { dot: "bg-red-500",     bg: "bg-red-500/10",     text: "text-red-400",     label: "Error" },
+const healthColors: Record<string, { dot: string; text: string; label: string }> = {
+  green:  { dot: "bg-forge-success", text: "text-forge-success", label: "Healthy" },
+  yellow: { dot: "bg-forge-warning", text: "text-forge-warning", label: "Warning" },
+  red:    { dot: "bg-forge-error",   text: "text-forge-error",   label: "Error" },
 };
 
 interface HealthBadgeProps {
@@ -13,7 +13,7 @@ interface HealthBadgeProps {
 export default function HealthBadge({ status }: HealthBadgeProps) {
   const config = healthColors[status] ?? healthColors.green;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${config.bg} ${config.text}`}>
+    <span className={`inline-flex items-center gap-1.5 text-2xs font-medium ${config.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
       {config.label}
     </span>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import { fetchDriftReport, type DriftReportResponse } from "@/lib/api";
 
 interface FeatureScore {
@@ -35,10 +36,10 @@ export default function DriftReportDetailPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Report</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading...
+        <PageHeader title="Drift Report" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-5 w-40 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-64 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -47,8 +48,8 @@ export default function DriftReportDetailPage() {
   if (error || !report) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Report</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Drift Report" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           {error || "Report not found."}
         </div>
       </div>
@@ -84,11 +85,11 @@ export default function DriftReportDetailPage() {
         <span className="text-forge-muted text-sm">/</span>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold capitalize">{report.report_type.replace("_", " ")}</h1>
+      <div className="flex items-center gap-4 mb-8">
+        <h1 className="text-2xl font-semibold capitalize">{report.report_type.replace("_", " ")}</h1>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            report.is_drifted === "true" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+          className={`text-2xs font-medium ${
+            report.is_drifted === "true" ? "text-forge-error" : "text-forge-success"
           }`}
         >
           {report.is_drifted === "true" ? "Drifted" : "Stable"}
@@ -134,7 +135,7 @@ export default function DriftReportDetailPage() {
       {/* Feature drift heatmap (table-based) */}
       {sortedFeatures.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Per-Feature Drift Scores</h2>
+          <h2 className="text-lg font-medium mb-3">Per-Feature Drift Scores</h2>
           <div className="bg-forge-card border border-forge-border rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
@@ -195,8 +196,8 @@ export default function DriftReportDetailPage() {
       {/* Distribution comparison — show ref vs cur mean/std as bar-like display */}
       {sortedFeatures.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Distribution Comparison (Top Features)</h2>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5 space-y-4">
+          <h2 className="text-lg font-medium mb-3">Distribution Comparison (Top Features)</h2>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6 space-y-4">
             {sortedFeatures.slice(0, 3).map(([name, scores]) => {
               const s = scores as FeatureScore;
               const maxVal = Math.max(Math.abs(s.ref_mean ?? 0), Math.abs(s.cur_mean ?? 0)) || 1;
@@ -237,7 +238,7 @@ export default function DriftReportDetailPage() {
       {/* Config */}
       {report.config && (
         <section>
-          <h2 className="text-lg font-semibold mb-3">Detection Config</h2>
+          <h2 className="text-lg font-medium mb-3">Detection Config</h2>
           <pre className="bg-forge-card border border-forge-border rounded-xl p-4 text-xs text-forge-muted overflow-x-auto">
             {JSON.stringify(report.config, null, 2)}
           </pre>

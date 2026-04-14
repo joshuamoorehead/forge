@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import {
   fetchModelDetail,
   transitionModelStage,
@@ -13,10 +14,10 @@ import {
 } from "@/lib/api";
 
 const STAGE_COLORS: Record<string, string> = {
-  development: "bg-gray-500/10 text-gray-400",
-  staging: "bg-blue-500/10 text-blue-400",
-  production: "bg-emerald-500/10 text-emerald-400",
-  archived: "bg-red-500/10 text-red-300",
+  development: "text-forge-muted",
+  staging: "text-forge-accent",
+  production: "text-forge-success",
+  archived: "text-forge-error",
 };
 
 export default function ModelDetailPage() {
@@ -70,10 +71,10 @@ export default function ModelDetailPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Model Detail</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading...
+        <PageHeader title="Model Detail" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-5 w-40 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-64 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -82,8 +83,8 @@ export default function ModelDetailPage() {
   if (error || !model) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Model Detail</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Model Detail" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           {error || "Model not found."}
         </div>
       </div>
@@ -93,24 +94,24 @@ export default function ModelDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-1">
-        <Link href="/models" className="text-forge-muted hover:text-forge-text transition-colors text-sm">
+        <Link href="/models" className="text-forge-muted hover:text-forge-secondary transition-colors text-sm">
           Models
         </Link>
         <span className="text-forge-muted text-sm">/</span>
       </div>
-      <h1 className="text-2xl font-bold mb-2">{model.name}</h1>
-      {model.description && <p className="text-sm text-forge-muted mb-6">{model.description}</p>}
+      <h1 className="text-2xl font-semibold mb-2">{model.name}</h1>
+      {model.description && <p className="text-sm text-forge-secondary mb-8">{model.description}</p>}
 
       {actionError && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400 mb-4">
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error mb-4">
           {actionError}
         </div>
       )}
 
       {/* Version Timeline */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Versions</h2>
-        <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+        <h2 className="text-lg font-medium mb-3">Versions</h2>
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6">
           {model.versions.length === 0 ? (
             <p className="text-forge-muted text-sm">No versions registered yet.</p>
           ) : (
@@ -169,8 +170,8 @@ export default function ModelDetailPage() {
       {/* Version Compare */}
       {model.versions.length >= 2 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Compare Versions</h2>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+          <h2 className="text-lg font-medium mb-3">Compare Versions</h2>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6">
             <div className="flex items-end gap-3 mb-4">
               <div className="flex-1">
                 <label className="text-xs text-forge-muted block mb-1">Version A</label>
@@ -245,8 +246,8 @@ export default function ModelDetailPage() {
       {/* Stage History */}
       {model.stage_history.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Stage History</h2>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+          <h2 className="text-lg font-medium mb-3">Stage History</h2>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6">
             <div className="space-y-2">
               {model.stage_history.map((h) => (
                 <div key={h.id} className="flex items-center gap-3 text-xs">

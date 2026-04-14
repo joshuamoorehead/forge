@@ -56,43 +56,43 @@ export default function CostChart({ logs }: CostChartProps) {
   return (
     <div className="space-y-6">
       {/* Total cost callout */}
-      <div className="bg-forge-bg border border-forge-border rounded-lg p-4 inline-block">
-        <p className="text-sm text-forge-muted">Total Cost</p>
-        <p className="text-3xl font-bold text-forge-accent">${totalCost.toFixed(2)}</p>
+      <div>
+        <p className="text-2xs font-medium uppercase tracking-widest text-forge-muted mb-1">Total Cost</p>
+        <p className="text-2xl font-semibold font-mono text-forge-text">${totalCost.toFixed(2)}</p>
       </div>
 
       {/* Cumulative cost line chart */}
       <div>
-        <h3 className="text-sm font-medium text-forge-muted mb-3">Cumulative Cost</h3>
+        <h3 className="text-2xs font-medium uppercase tracking-widest text-forge-muted mb-3">Cumulative Cost</h3>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => `$${v}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a30" />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#5c5c66" }} />
+            <YAxis tick={{ fontSize: 11, fill: "#5c5c66" }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
-              contentStyle={{ backgroundColor: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: "8px" }}
-              labelStyle={{ color: "#e2e8f0" }}
+              contentStyle={{ backgroundColor: "#1a1a1f", border: "1px solid #2a2a30", borderRadius: "8px" }}
+              labelStyle={{ color: "#ececef" }}
               formatter={(value: number) => [`$${value.toFixed(4)}`, "Cumulative"]}
             />
-            <Line type="monotone" dataKey="cumulative" stroke="#6366f1" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="cumulative" stroke="#6b9fce" strokeWidth={1.5} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Daily cost bar chart */}
       <div>
-        <h3 className="text-sm font-medium text-forge-muted mb-3">Daily Cost</h3>
+        <h3 className="text-2xs font-medium uppercase tracking-widest text-forge-muted mb-3">Daily Cost</h3>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => `$${v}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a30" />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#5c5c66" }} />
+            <YAxis tick={{ fontSize: 11, fill: "#5c5c66" }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
-              contentStyle={{ backgroundColor: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: "8px" }}
-              labelStyle={{ color: "#e2e8f0" }}
+              contentStyle={{ backgroundColor: "#1a1a1f", border: "1px solid #2a2a30", borderRadius: "8px" }}
+              labelStyle={{ color: "#ececef" }}
               formatter={(value: number) => [`$${value.toFixed(4)}`, "Cost"]}
             />
-            <Bar dataKey="cost" fill="#6366f1" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="cost" fill="#6b9fce" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
