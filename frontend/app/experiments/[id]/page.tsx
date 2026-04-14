@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import RunComparisonTable from "@/components/RunComparisonTable";
 import EfficiencyFrontier from "@/components/EfficiencyFrontier";
+import PageHeader from "@/components/PageHeader";
 import {
   fetchExperimentDetail,
   fetchModels,
@@ -110,10 +111,10 @@ export default function ExperimentDetailPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Experiment Detail</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading experiment...
+        <PageHeader title="Experiment Detail" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-5 w-48 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-80 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -122,8 +123,8 @@ export default function ExperimentDetailPage() {
   if (error || !experiment) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Experiment Detail</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Experiment Detail" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           {error || "Experiment not found."}
         </div>
       </div>
@@ -136,23 +137,23 @@ export default function ExperimentDetailPage() {
       <div className="flex items-center gap-3 mb-1">
         <Link
           href="/experiments"
-          className="text-forge-muted hover:text-forge-text transition-colors text-sm"
+          className="text-forge-muted hover:text-forge-secondary transition-colors text-sm"
         >
           Experiments
         </Link>
         <span className="text-forge-muted text-sm">/</span>
       </div>
-      <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">{experiment.name}</h1>
+      <div className="flex items-center gap-4 mb-8">
+        <h1 className="text-2xl font-semibold">{experiment.name}</h1>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+          className={`text-2xs font-medium ${
             experiment.status === "completed"
-              ? "bg-emerald-500/10 text-emerald-400"
+              ? "text-forge-success"
               : experiment.status === "running"
-              ? "bg-blue-500/10 text-blue-400"
+              ? "text-forge-accent"
               : experiment.status === "failed"
-              ? "bg-red-500/10 text-red-400"
-              : "bg-gray-500/10 text-gray-400"
+              ? "text-forge-error"
+              : "text-forge-muted"
           }`}
         >
           {experiment.status}
@@ -160,13 +161,13 @@ export default function ExperimentDetailPage() {
       </div>
 
       {experiment.description && (
-        <p className="text-sm text-forge-muted mb-6">{experiment.description}</p>
+        <p className="text-sm text-forge-secondary mb-8">{experiment.description}</p>
       )}
 
       {/* Run Comparison Table */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Run Comparison</h2>
-        <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+      <section className="mb-10">
+        <h2 className="text-lg font-medium mb-3">Run Comparison</h2>
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6">
           <RunComparisonTable
             runs={experiment.runs}
             onSelectRun={(run) => {
@@ -183,8 +184,8 @@ export default function ExperimentDetailPage() {
 
       {/* Efficiency Frontier */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Efficiency Frontier</h2>
-        <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+        <h2 className="text-lg font-medium mb-3">Efficiency Frontier</h2>
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6">
           <EfficiencyFrontier runs={experiment.runs} />
         </div>
       </section>
@@ -203,7 +204,7 @@ export default function ExperimentDetailPage() {
               Close
             </button>
           </div>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6">
             <div className="grid grid-cols-2 gap-6">
               {/* Hyperparameters */}
               <div>
@@ -332,7 +333,7 @@ export default function ExperimentDetailPage() {
                 </svg>
                 Environment
                 {envData?.git_dirty && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 font-medium">DIRTY</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-forge-warning/10 text-forge-warning font-medium">DIRTY</span>
                 )}
               </button>
 
@@ -356,7 +357,7 @@ export default function ExperimentDetailPage() {
                             Branch: <span className="font-mono text-forge-text">{envData.git_branch ?? "N/A"}</span>
                           </span>
                           {envData.git_dirty && (
-                            <span className="text-yellow-400">uncommitted changes</span>
+                            <span className="text-forge-warning">uncommitted changes</span>
                           )}
                         </div>
                       </div>
@@ -407,7 +408,7 @@ export default function ExperimentDetailPage() {
                           {reproduceData.warnings.length > 0 && (
                             <div className="mb-2 space-y-1">
                               {reproduceData.warnings.map((w, i) => (
-                                <p key={i} className="text-[11px] text-yellow-400">! {w}</p>
+                                <p key={i} className="text-[11px] text-forge-warning">! {w}</p>
                               ))}
                             </div>
                           )}
@@ -443,8 +444,8 @@ export default function ExperimentDetailPage() {
       {/* Environment Diff */}
       {experiment.runs.length >= 2 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Environment Diff</h2>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+          <h2 className="text-lg font-medium mb-3">Environment Diff</h2>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <select
                 value={diffRunA}
@@ -482,23 +483,23 @@ export default function ExperimentDetailPage() {
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     diffData.reproducibility?.verdict === "reproducible"
-                      ? "bg-emerald-500/10 text-emerald-400"
+                      ? "bg-forge-success/10 text-forge-success"
                       : diffData.reproducibility?.verdict === "reproducible_with_warnings"
-                      ? "bg-yellow-500/10 text-yellow-400"
-                      : "bg-red-500/10 text-red-400"
+                      ? "bg-forge-warning/10 text-forge-warning"
+                      : "bg-forge-error/10 text-forge-error"
                   }`}>
                     {diffData.reproducibility?.verdict?.replace(/_/g, " ") ?? "unknown"}
                   </span>
                   {diffData.environments_identical && (
-                    <span className="text-xs text-emerald-400">Environments identical</span>
+                    <span className="text-xs text-forge-success">Environments identical</span>
                   )}
                 </div>
 
                 {/* Warnings */}
                 {diffData.reproducibility?.warnings && diffData.reproducibility.warnings.length > 0 && (
-                  <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                  <div className="bg-forge-warning/5 border border-forge-warning/20 rounded-lg p-3">
                     {diffData.reproducibility.warnings.map((w, i) => (
-                      <p key={i} className="text-xs text-yellow-400">! {w}</p>
+                      <p key={i} className="text-xs text-forge-warning">! {w}</p>
                     ))}
                   </div>
                 )}
@@ -532,22 +533,22 @@ export default function ExperimentDetailPage() {
                     <div className="space-y-1 font-mono text-xs">
                       {Object.entries(diffData.packages_changed).map(([pkg, v]) => (
                         <div key={pkg} className="flex gap-2">
-                          <span className="text-yellow-400">~</span>
+                          <span className="text-forge-warning">~</span>
                           <span className="text-forge-text">{pkg}:</span>
-                          <span className="text-red-400">{v.run_a}</span>
+                          <span className="text-forge-error">{v.run_a}</span>
                           <span className="text-forge-muted">&rarr;</span>
-                          <span className="text-emerald-400">{v.run_b}</span>
+                          <span className="text-forge-success">{v.run_b}</span>
                         </div>
                       ))}
                       {Object.entries(diffData.packages_added).map(([pkg, ver]) => (
                         <div key={pkg} className="flex gap-2">
-                          <span className="text-emerald-400">+</span>
+                          <span className="text-forge-success">+</span>
                           <span className="text-forge-text">{pkg}: {ver}</span>
                         </div>
                       ))}
                       {Object.entries(diffData.packages_removed).map(([pkg, ver]) => (
                         <div key={pkg} className="flex gap-2">
-                          <span className="text-red-400">-</span>
+                          <span className="text-forge-error">-</span>
                           <span className="text-forge-text">{pkg}: {ver}</span>
                         </div>
                       ))}
@@ -563,9 +564,9 @@ export default function ExperimentDetailPage() {
                       {Object.entries(diffData.field_diffs).map(([field, v]) => (
                         <div key={field} className="flex gap-2">
                           <span className="text-forge-muted w-32">{field.replace(/_/g, " ")}:</span>
-                          <span className="font-mono text-red-400">{String(v.run_a)?.slice(0, 20)}</span>
+                          <span className="font-mono text-forge-error">{String(v.run_a)?.slice(0, 20)}</span>
                           <span className="text-forge-muted">&rarr;</span>
-                          <span className="font-mono text-emerald-400">{String(v.run_b)?.slice(0, 20)}</span>
+                          <span className="font-mono text-forge-success">{String(v.run_b)?.slice(0, 20)}</span>
                         </div>
                       ))}
                     </div>

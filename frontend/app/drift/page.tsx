@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import SummaryCard from "@/components/SummaryCard";
 import {
   fetchDriftReports,
@@ -29,10 +30,14 @@ export default function DriftPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Detection</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading...
+        <PageHeader title="Drift Detection" subtitle="Monitor dataset and model drift over time" />
+        <div className="grid grid-cols-4 gap-5 mb-10">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+              <div className="h-3 w-24 bg-forge-bg-raised rounded mb-3" />
+              <div className="h-7 w-16 bg-forge-bg-raised rounded" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -41,19 +46,19 @@ export default function DriftPage() {
   if (error) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Detection</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">{error}</div>
+        <PageHeader title="Drift Detection" subtitle="Monitor dataset and model drift over time" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">{error}</div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Drift Detection</h1>
+      <PageHeader title="Drift Detection" subtitle="Monitor dataset and model drift over time" />
 
       {/* Summary cards */}
       {summary && (
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-4 gap-5 mb-10">
           <SummaryCard title="Total Reports" value={summary.total_reports} />
           <SummaryCard
             title="Datasets with Drift"
@@ -70,32 +75,32 @@ export default function DriftPage() {
 
       {/* Reports table */}
       {reports.length === 0 ? (
-        <div className="bg-forge-card border border-forge-border rounded-xl p-8 text-center">
-          <p className="text-forge-muted mb-1">No drift reports yet</p>
-          <p className="text-forge-muted text-sm">
+        <div className="bg-forge-card border border-forge-border rounded-xl p-10 text-center">
+          <p className="text-sm font-medium text-forge-text mb-1">No drift reports yet</p>
+          <p className="text-sm text-forge-secondary">
             Run drift detection via:{" "}
-            <code className="text-forge-accent text-xs">POST /api/drift/detect</code>
+            <code className="text-forge-accent font-mono text-xs">POST /api/drift/detect</code>
           </p>
         </div>
       ) : (
         <div className="bg-forge-card border border-forge-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-forge-border">
-                <th className="px-4 py-3 text-left text-xs font-medium text-forge-muted uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-forge-muted uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-forge-muted uppercase">Dataset</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-forge-muted uppercase">Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-forge-muted uppercase">Status</th>
+              <tr className="border-b border-forge-border bg-forge-bg-raised">
+                <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Date</th>
+                <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Type</th>
+                <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Dataset</th>
+                <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Score</th>
+                <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Status</th>
               </tr>
             </thead>
             <tbody>
               {reports.map((r) => (
-                <tr key={r.id} className="border-b border-forge-border/50 hover:bg-forge-bg transition-colors">
-                  <td className="px-4 py-3 text-forge-muted text-xs">
+                <tr key={r.id} className="border-b border-forge-border last:border-b-0 hover:bg-white/[0.02] transition-colors duration-150">
+                  <td className="px-5 py-3.5 text-forge-muted text-xs">
                     {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     <Link
                       href={`/drift/${r.id}`}
                       className="text-forge-text hover:text-forge-accent transition-colors text-xs font-mono"
@@ -103,18 +108,18 @@ export default function DriftPage() {
                       {r.report_type}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-forge-muted text-xs font-mono">
+                  <td className="px-5 py-3.5 text-forge-muted text-xs font-mono">
                     {r.dataset_id.slice(0, 8)}...
                   </td>
-                  <td className="px-4 py-3 text-forge-text text-xs font-mono">
+                  <td className="px-5 py-3.5 text-forge-text text-xs font-mono">
                     {r.overall_drift_score != null ? (r.overall_drift_score * 100).toFixed(1) + "%" : "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3.5">
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      className={`text-2xs font-medium ${
                         r.is_drifted === "true"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-emerald-500/10 text-emerald-400"
+                          ? "text-forge-error"
+                          : "text-forge-success"
                       }`}
                     >
                       {r.is_drifted === "true" ? "Drifted" : "Stable"}

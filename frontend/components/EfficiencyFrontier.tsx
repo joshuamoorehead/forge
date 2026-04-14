@@ -49,8 +49,8 @@ function computePareto(points: PlotPoint[]): Set<string> {
   return paretoIds;
 }
 
-const PARETO_COLOR = "#6366f1"; // forge-accent (indigo)
-const NORMAL_COLOR = "#475569"; // slate-600
+const PARETO_COLOR = "#6b9fce"; // forge-accent
+const NORMAL_COLOR = "#5c5c66"; // forge-muted
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PlotPoint }> }) {
   if (!active || !payload?.length) return null;
@@ -116,17 +116,17 @@ export default function EfficiencyFrontier({ runs }: Props) {
     <div className="w-full h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-          <CartesianGrid stroke="#2a2d3a" strokeDasharray="3 3" />
+          <CartesianGrid stroke="#2a2a30" strokeDasharray="3 3" />
           <XAxis
             dataKey="latency"
             type="number"
             name="Latency (ms)"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={{ fill: "#5c5c66", fontSize: 12 }}
             label={{
               value: "Inference Latency (ms)",
               position: "insideBottom",
               offset: -10,
-              fill: "#94a3b8",
+              fill: "#5c5c66",
               fontSize: 12,
             }}
           />
@@ -134,14 +134,14 @@ export default function EfficiencyFrontier({ runs }: Props) {
             dataKey="accuracy"
             type="number"
             name="Accuracy"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={{ fill: "#5c5c66", fontSize: 12 }}
             tickFormatter={(v: number) => (v * 100).toFixed(0) + "%"}
             label={{
               value: "Accuracy",
               angle: -90,
               position: "insideLeft",
               offset: 10,
-              fill: "#94a3b8",
+              fill: "#5c5c66",
               fontSize: 12,
             }}
           />

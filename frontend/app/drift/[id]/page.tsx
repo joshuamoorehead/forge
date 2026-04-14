@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import { fetchDriftReport, type DriftReportResponse } from "@/lib/api";
 
 interface FeatureScore {
@@ -35,10 +36,10 @@ export default function DriftReportDetailPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Report</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading...
+        <PageHeader title="Drift Report" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-5 w-40 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-64 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -47,8 +48,8 @@ export default function DriftReportDetailPage() {
   if (error || !report) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Drift Report</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Drift Report" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           {error || "Report not found."}
         </div>
       </div>
@@ -84,11 +85,11 @@ export default function DriftReportDetailPage() {
         <span className="text-forge-muted text-sm">/</span>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold capitalize">{report.report_type.replace("_", " ")}</h1>
+      <div className="flex items-center gap-4 mb-8">
+        <h1 className="text-2xl font-semibold capitalize">{report.report_type.replace("_", " ")}</h1>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            report.is_drifted === "true" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+          className={`text-2xs font-medium ${
+            report.is_drifted === "true" ? "text-forge-error" : "text-forge-success"
           }`}
         >
           {report.is_drifted === "true" ? "Drifted" : "Stable"}
@@ -116,8 +117,8 @@ export default function DriftReportDetailPage() {
 
       {/* Top drifted features callout */}
       {topDrifted && topDrifted.length > 0 && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-yellow-400 mb-2">Top Drifted Features</h3>
+        <div className="bg-forge-warning/10 border border-forge-warning/20 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-semibold text-forge-warning mb-2">Top Drifted Features</h3>
           <div className="flex gap-4">
             {topDrifted.map((t, i) => (
               <div key={i} className="text-xs">
@@ -134,7 +135,7 @@ export default function DriftReportDetailPage() {
       {/* Feature drift heatmap (table-based) */}
       {sortedFeatures.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Per-Feature Drift Scores</h2>
+          <h2 className="text-lg font-medium mb-3">Per-Feature Drift Scores</h2>
           <div className="bg-forge-card border border-forge-border rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
@@ -176,11 +177,11 @@ export default function DriftReportDetailPage() {
                       </td>
                       <td className="px-4 py-2">
                         {(s.is_drifted || s.drift_level === "significant") ? (
-                          <span className="text-red-400 font-medium">drifted</span>
+                          <span className="text-forge-error font-medium">drifted</span>
                         ) : s.drift_level === "moderate" ? (
-                          <span className="text-yellow-400 font-medium">moderate</span>
+                          <span className="text-forge-warning font-medium">moderate</span>
                         ) : (
-                          <span className="text-emerald-400">stable</span>
+                          <span className="text-forge-success">stable</span>
                         )}
                       </td>
                     </tr>
@@ -195,8 +196,8 @@ export default function DriftReportDetailPage() {
       {/* Distribution comparison — show ref vs cur mean/std as bar-like display */}
       {sortedFeatures.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Distribution Comparison (Top Features)</h2>
-          <div className="bg-forge-card border border-forge-border rounded-xl p-5 space-y-4">
+          <h2 className="text-lg font-medium mb-3">Distribution Comparison (Top Features)</h2>
+          <div className="bg-forge-card border border-forge-border rounded-xl p-6 space-y-4">
             {sortedFeatures.slice(0, 3).map(([name, scores]) => {
               const s = scores as FeatureScore;
               const maxVal = Math.max(Math.abs(s.ref_mean ?? 0), Math.abs(s.cur_mean ?? 0)) || 1;
@@ -215,7 +216,7 @@ export default function DriftReportDetailPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-forge-muted w-12">Ref</span>
                       <div className="flex-1 bg-forge-bg rounded h-4 overflow-hidden">
-                        <div className="bg-blue-500/50 h-full rounded" style={{ width: `${Math.min(refWidth, 100)}%` }} />
+                        <div className="bg-forge-accent/50 h-full rounded" style={{ width: `${Math.min(refWidth, 100)}%` }} />
                       </div>
                       <span className="text-xs text-forge-muted w-20 text-right font-mono">{s.ref_mean?.toFixed(4) ?? "—"}</span>
                     </div>
@@ -237,7 +238,7 @@ export default function DriftReportDetailPage() {
       {/* Config */}
       {report.config && (
         <section>
-          <h2 className="text-lg font-semibold mb-3">Detection Config</h2>
+          <h2 className="text-lg font-medium mb-3">Detection Config</h2>
           <pre className="bg-forge-card border border-forge-border rounded-xl p-4 text-xs text-forge-muted overflow-x-auto">
             {JSON.stringify(report.config, null, 2)}
           </pre>

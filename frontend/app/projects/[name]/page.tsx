@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import HealthBadge from "@/components/HealthBadge";
 import LogTable from "@/components/LogTable";
 import CostChart from "@/components/CostChart";
+import PageHeader from "@/components/PageHeader";
 import {
   fetchProjectDetail,
   fetchProjects,
@@ -40,10 +41,10 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Project Detail</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading project...
+        <PageHeader title="Project Detail" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-5 w-40 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-64 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -52,8 +53,8 @@ export default function ProjectDetailPage() {
   if (!detail) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Project Detail</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Project Detail" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           Project not found.
         </div>
       </div>
@@ -63,8 +64,8 @@ export default function ProjectDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">{name}</h1>
+      <div className="flex items-center gap-4 mb-8">
+        <h1 className="text-2xl font-semibold">{name}</h1>
         {summary && <HealthBadge status={summary.health} />}
       </div>
 
@@ -74,10 +75,10 @@ export default function ProjectDetailPage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ${
               activeTab === tab
-                ? "border-forge-accent text-forge-accent"
-                : "border-transparent text-forge-muted hover:text-forge-text"
+                ? "border-forge-accent text-forge-text"
+                : "border-transparent text-forge-muted hover:text-forge-secondary"
             }`}
           >
             {tab}
@@ -86,7 +87,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tab content */}
-      <div className="bg-forge-card border border-forge-border rounded-xl p-5">
+      <div className="bg-forge-card border border-forge-border rounded-xl p-6">
         {activeTab === "Activity" && <ActivityTab events={detail.git_events} />}
         {activeTab === "Logs" && <LogTable logs={detail.recent_logs} />}
         {activeTab === "Cost" && <CostChart logs={detail.recent_logs} />}
@@ -115,7 +116,7 @@ function ActivityTab({ events }: { events: ProjectDetailResponse["git_events"] }
           <div key={evt.id} className="flex gap-4 relative">
             {/* Dot */}
             <div className="w-6 flex-shrink-0 flex justify-center pt-1.5 z-10">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-forge-card" />
+              <div className="w-2.5 h-2.5 rounded-full bg-forge-accent ring-4 ring-forge-card" />
             </div>
 
             {/* Content */}
@@ -131,8 +132,8 @@ function ActivityTab({ events }: { events: ProjectDetailResponse["git_events"] }
               <div className="flex gap-3 mt-1 text-xs text-forge-muted">
                 {evt.author && <span>by {evt.author}</span>}
                 {evt.files_changed != null && <span>{evt.files_changed} files</span>}
-                {evt.additions != null && <span className="text-emerald-400">+{evt.additions}</span>}
-                {evt.deletions != null && <span className="text-red-400">-{evt.deletions}</span>}
+                {evt.additions != null && <span className="text-forge-success">+{evt.additions}</span>}
+                {evt.deletions != null && <span className="text-forge-error">-{evt.deletions}</span>}
               </div>
             </div>
           </div>
@@ -170,14 +171,14 @@ function ExperimentsTab({ experiments }: { experiments: ProjectDetailResponse["l
           </div>
           <div className="flex items-center gap-3">
             <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              className={`text-2xs font-medium ${
                 exp.status === "completed"
-                  ? "bg-emerald-500/10 text-emerald-400"
+                  ? "text-forge-success"
                   : exp.status === "running"
-                  ? "bg-blue-500/10 text-blue-400"
+                  ? "text-forge-accent"
                   : exp.status === "failed"
-                  ? "bg-red-500/10 text-red-400"
-                  : "bg-gray-500/10 text-gray-400"
+                  ? "text-forge-error"
+                  : "text-forge-muted"
               }`}
             >
               {exp.status}

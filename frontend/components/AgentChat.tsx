@@ -62,26 +62,21 @@ export default function AgentChat() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-12 h-12 rounded-full bg-forge-accent/10 flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-forge-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-forge-text mb-2">Ask the Agent</h3>
-            <p className="text-sm text-forge-muted mb-6 max-w-md">
-              Query your experiment data and ops logs using natural language. The agent uses tools to search, compare, and analyze.
+            <h3 className="text-lg font-medium text-forge-text mb-2">Ask the Agent</h3>
+            <p className="text-sm text-forge-secondary mb-6 max-w-md">
+              Query your experiment data and ops logs using natural language.
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
               {STARTER_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleSend(q)}
-                  className="px-4 py-2 text-sm bg-forge-card border border-forge-border rounded-lg text-forge-muted hover:text-forge-text hover:border-forge-accent/50 transition-colors"
+                  className="px-4 py-2 text-sm bg-forge-card border border-forge-border rounded-lg text-forge-secondary hover:text-forge-text hover:border-forge-border-light transition-colors duration-150"
                 >
                   {q}
                 </button>
@@ -96,7 +91,7 @@ export default function AgentChat() {
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[75%] rounded-xl px-4 py-3 ${
+              className={`max-w-[75%] rounded-lg px-4 py-3 ${
                 msg.role === "user"
                   ? "bg-forge-accent text-white"
                   : "bg-forge-card border border-forge-border text-forge-text"
@@ -106,21 +101,19 @@ export default function AgentChat() {
 
               {/* Tool calls display */}
               {msg.intermediate_results && msg.intermediate_results.length > 0 && (
-                <div className="mt-3 space-y-2 border-t border-forge-border/50 pt-3">
-                  <p className="text-xs font-medium text-forge-muted uppercase tracking-wider">
+                <div className="mt-3 space-y-2 border-t border-forge-border pt-3">
+                  <p className="text-2xs font-medium text-forge-muted uppercase tracking-widest">
                     Tools Used
                   </p>
                   {msg.intermediate_results.map((ir, j) => (
                     <div
                       key={j}
-                      className="bg-forge-bg rounded-lg p-2.5 text-xs"
+                      className="bg-forge-bg rounded-md p-2.5 text-xs"
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="px-1.5 py-0.5 rounded bg-forge-accent/10 text-forge-accent font-mono font-medium">
-                          {ir.tool}
-                        </span>
-                      </div>
-                      <p className="text-forge-muted whitespace-pre-wrap break-words">
+                      <span className="text-forge-accent font-mono text-2xs font-medium">
+                        {ir.tool}
+                      </span>
+                      <p className="text-forge-muted whitespace-pre-wrap break-words mt-1">
                         {ir.result_preview}
                       </p>
                     </div>
@@ -134,14 +127,14 @@ export default function AgentChat() {
         {/* Loading indicator */}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-forge-card border border-forge-border rounded-xl px-4 py-3">
+            <div className="bg-forge-card border border-forge-border rounded-lg px-4 py-3">
               <div className="flex items-center gap-2 text-sm text-forge-muted">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-forge-accent rounded-full animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 bg-forge-accent rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 bg-forge-accent rounded-full animate-bounce [animation-delay:300ms]" />
+                  <span className="w-1.5 h-1.5 bg-forge-accent rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 bg-forge-accent rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 bg-forge-accent rounded-full animate-bounce [animation-delay:300ms]" />
                 </div>
-                Agent is thinking...
+                Thinking...
               </div>
             </div>
           </div>
@@ -150,7 +143,7 @@ export default function AgentChat() {
         {/* Error display */}
         {error && (
           <div className="flex justify-center">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-sm text-red-400">
+            <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-2 text-sm text-forge-error">
               {error}
             </div>
           </div>
@@ -169,12 +162,12 @@ export default function AgentChat() {
             onKeyDown={handleKeyDown}
             placeholder="Ask about experiments, runs, or ops data..."
             disabled={loading}
-            className="flex-1 bg-forge-card border border-forge-border rounded-lg px-4 py-3 text-sm text-forge-text placeholder-forge-muted focus:outline-none focus:border-forge-accent transition-colors disabled:opacity-50"
+            className="flex-1 bg-forge-card border border-forge-border rounded-lg px-4 py-3 text-sm text-forge-text placeholder-forge-muted focus:outline-none focus:border-forge-border-light transition-colors duration-150 disabled:opacity-50"
           />
           <button
             onClick={() => handleSend()}
             disabled={loading || !input.trim()}
-            className="px-5 py-3 bg-forge-accent text-white rounded-lg text-sm font-medium hover:bg-forge-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-3 bg-forge-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Send
           </button>

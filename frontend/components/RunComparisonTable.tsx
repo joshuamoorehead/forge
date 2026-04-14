@@ -73,12 +73,12 @@ export default function RunComparisonTable({ runs, onSelectRun, selectedRunId }:
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-forge-border">
+          <tr className="border-b border-forge-border bg-forge-bg-raised">
             {columns.map((col) => (
               <th
                 key={col.key}
                 onClick={() => handleSort(col.key)}
-                className="px-3 py-2.5 text-left text-xs font-medium text-forge-muted uppercase tracking-wider cursor-pointer hover:text-forge-text transition-colors select-none whitespace-nowrap"
+                className="px-4 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest cursor-pointer hover:text-forge-secondary transition-colors duration-150 select-none whitespace-nowrap"
               >
                 {col.label}
                 {sortKey === col.key && (
@@ -93,10 +93,10 @@ export default function RunComparisonTable({ runs, onSelectRun, selectedRunId }:
             <tr
               key={run.id}
               onClick={() => onSelectRun?.(run)}
-              className={`border-b border-forge-border/50 cursor-pointer transition-colors ${
+              className={`border-b border-forge-border last:border-b-0 cursor-pointer transition-colors duration-150 ${
                 selectedRunId === run.id
-                  ? "bg-forge-accent/10"
-                  : "hover:bg-forge-bg"
+                  ? "bg-forge-accent-dim"
+                  : "hover:bg-white/[0.02]"
               }`}
             >
               {columns.map((col) => {
@@ -108,7 +108,7 @@ export default function RunComparisonTable({ runs, onSelectRun, selectedRunId }:
                     ? col.format(null)
                     : raw ?? "—";
                 return (
-                  <td key={col.key} className="px-3 py-2.5 whitespace-nowrap text-forge-text">
+                  <td key={col.key} className="px-4 py-3 whitespace-nowrap text-forge-text text-sm font-mono">
                     {String(display)}
                   </td>
                 );

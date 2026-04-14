@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { GeistMono } from "geist/font/mono";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
@@ -9,11 +10,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={GeistMono.variable}>
       <body className="flex min-h-screen">
         <Sidebar />
-        <main className="flex-1 ml-60 p-8 min-w-0 overflow-x-hidden">
-          {children}
+        <main className="flex-1 ml-64 min-w-0 overflow-x-hidden">
+          <div className="max-w-content mx-auto px-8 py-8">
+            {children}
+          </div>
         </main>
       </body>
     </html>

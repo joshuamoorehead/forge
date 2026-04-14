@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PageHeader from "@/components/PageHeader";
 import {
   fetchFeatureSets,
   fetchFeatureSetDetail,
@@ -65,10 +66,11 @@ export default function FeaturesPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Feature Store</h1>
-        <div className="flex items-center gap-3 text-forge-muted">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-          Loading feature sets...
+        <PageHeader title="Feature Store" subtitle="Versioned feature sets and comparisons" />
+        <div className="bg-forge-card border border-forge-border rounded-xl p-6 animate-pulse">
+          <div className="h-4 w-32 bg-forge-bg-raised rounded mb-4" />
+          <div className="h-3 w-full bg-forge-bg-raised rounded mb-2" />
+          <div className="h-3 w-3/4 bg-forge-bg-raised rounded" />
         </div>
       </div>
     );
@@ -77,8 +79,8 @@ export default function FeaturesPage() {
   if (error) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Feature Store</h1>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-400">
+        <PageHeader title="Feature Store" subtitle="Versioned feature sets and comparisons" />
+        <div className="bg-forge-error/10 border border-forge-error/20 rounded-lg px-4 py-3 text-sm text-forge-error">
           {error}
         </div>
       </div>
@@ -87,7 +89,7 @@ export default function FeaturesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Feature Store</h1>
+      <PageHeader title="Feature Store" subtitle="Versioned feature sets and comparisons" />
 
       {featureSets.length === 0 ? (
         <div className="bg-forge-card border border-forge-border rounded-xl p-8 text-center">
@@ -141,7 +143,7 @@ export default function FeaturesPage() {
                         className={`border-b border-forge-border/30 cursor-pointer transition-colors ${
                           selectedDetail?.id === fs.id
                             ? "bg-forge-accent/10"
-                            : "hover:bg-forge-bg"
+                            : "hover:bg-white/[0.02]"
                         }`}
                       >
                         <td className="px-4 py-2">
@@ -217,10 +219,10 @@ export default function FeaturesPage() {
                         <span
                           className={`w-2 h-2 rounded-full ${
                             entry.status === "ready"
-                              ? "bg-emerald-400"
+                              ? "bg-forge-success"
                               : entry.status === "computing"
-                              ? "bg-blue-400"
-                              : "bg-red-400"
+                              ? "bg-forge-accent"
+                              : "bg-forge-error"
                           }`}
                         />
                         <span className="text-forge-muted font-mono">
@@ -298,7 +300,7 @@ export default function FeaturesPage() {
                 <div className="bg-forge-bg rounded-lg p-3 text-xs space-y-2">
                   {compareResult.columns_added.length > 0 && (
                     <div>
-                      <span className="text-emerald-400 font-medium">
+                      <span className="text-forge-success font-medium">
                         + Added columns:{" "}
                       </span>
                       <span className="text-forge-muted font-mono">
@@ -308,7 +310,7 @@ export default function FeaturesPage() {
                   )}
                   {compareResult.columns_removed.length > 0 && (
                     <div>
-                      <span className="text-red-400 font-medium">
+                      <span className="text-forge-error font-medium">
                         - Removed columns:{" "}
                       </span>
                       <span className="text-forge-muted font-mono">
@@ -318,7 +320,7 @@ export default function FeaturesPage() {
                   )}
                   {Object.keys(compareResult.config_changed).length > 0 && (
                     <div>
-                      <span className="text-yellow-400 font-medium">
+                      <span className="text-forge-warning font-medium">
                         ~ Changed config:{" "}
                       </span>
                       <pre className="text-forge-muted mt-1 ml-2">

@@ -24,29 +24,29 @@ export default function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Link
       href={`/projects/${encodeURIComponent(project.name)}`}
-      className="block bg-forge-card border border-forge-border rounded-xl p-5 hover:border-forge-accent/50 transition-colors"
+      className="block bg-forge-card border border-forge-border rounded-xl p-6 hover:bg-forge-card-hover hover:border-forge-border-light transition-colors duration-150"
     >
       <div className="flex items-start justify-between mb-3">
-        <h3 className="text-base font-semibold text-forge-text">{project.name}</h3>
+        <h3 className="text-sm font-medium text-forge-text">{project.name}</h3>
         <HealthBadge status={project.health} />
       </div>
 
-      <p className="text-xs text-forge-muted mb-4">Last active {timeAgo(project.last_activity)}</p>
+      <p className="text-xs text-forge-muted mb-5">Last active {timeAgo(project.last_activity)}</p>
 
       <div className="grid grid-cols-3 gap-3 text-center">
         <div>
-          <p className="text-lg font-bold text-forge-text">{project.commit_count_7d}</p>
-          <p className="text-xs text-forge-muted">Commits</p>
+          <p className="text-base font-semibold font-mono text-forge-text">{project.commit_count_7d}</p>
+          <p className="text-2xs text-forge-muted uppercase tracking-wider">Commits</p>
         </div>
         <div>
-          <p className="text-lg font-bold text-forge-text">${project.total_cost_7d.toFixed(2)}</p>
-          <p className="text-xs text-forge-muted">Cost</p>
+          <p className="text-base font-semibold font-mono text-forge-text">${project.total_cost_7d.toFixed(2)}</p>
+          <p className="text-2xs text-forge-muted uppercase tracking-wider">Cost</p>
         </div>
         <div>
-          <p className={`text-lg font-bold ${project.error_count_7d > 0 ? "text-red-400" : "text-forge-text"}`}>
+          <p className={`text-base font-semibold font-mono ${project.error_count_7d > 0 ? "text-forge-error" : "text-forge-text"}`}>
             {project.error_count_7d}
           </p>
-          <p className="text-xs text-forge-muted">Errors</p>
+          <p className="text-2xs text-forge-muted uppercase tracking-wider">Errors</p>
         </div>
       </div>
     </Link>
