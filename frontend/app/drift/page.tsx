@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import StatusBadge from "@/components/StatusBadge";
 import SummaryCard from "@/components/SummaryCard";
 import {
   fetchDriftReports,
@@ -86,7 +87,7 @@ export default function DriftPage() {
         <div className="bg-forge-card border border-forge-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-forge-border bg-forge-bg-raised">
+              <tr className="border-b border-forge-border bg-forge-bg-raised sticky top-0 z-10">
                 <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Date</th>
                 <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Type</th>
                 <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">Dataset</th>
@@ -115,15 +116,7 @@ export default function DriftPage() {
                     {r.overall_drift_score != null ? (r.overall_drift_score * 100).toFixed(1) + "%" : "—"}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span
-                      className={`text-2xs font-medium ${
-                        r.is_drifted === "true"
-                          ? "text-forge-error"
-                          : "text-forge-success"
-                      }`}
-                    >
-                      {r.is_drifted === "true" ? "Drifted" : "Stable"}
-                    </span>
+                    <StatusBadge status={r.is_drifted === "true" ? "drifted" : "stable"} />
                   </td>
                 </tr>
               ))}

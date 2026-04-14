@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import StatusBadge from "@/components/StatusBadge";
 import {
   fetchModelDetail,
   transitionModelStage,
@@ -121,9 +122,7 @@ export default function ModelDetailPage() {
                   <div className="flex-shrink-0">
                     <span className="text-forge-accent font-mono text-sm font-bold">v{v.version}</span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STAGE_COLORS[v.stage] || STAGE_COLORS.development}`}>
-                    {v.stage}
-                  </span>
+                  <StatusBadge status={v.stage} />
                   <div className="flex-1 text-xs text-forge-muted">
                     {v.metrics_snapshot && (
                       <span>
@@ -254,9 +253,9 @@ export default function ModelDetailPage() {
                   <span className="text-forge-muted">
                     {h.changed_at ? new Date(h.changed_at).toLocaleString() : "—"}
                   </span>
-                  <span className={`px-1.5 py-0.5 rounded ${STAGE_COLORS[h.from_stage] || ""}`}>{h.from_stage}</span>
-                  <span className="text-forge-muted">-&gt;</span>
-                  <span className={`px-1.5 py-0.5 rounded ${STAGE_COLORS[h.to_stage] || ""}`}>{h.to_stage}</span>
+                  <StatusBadge status={h.from_stage} />
+                  <span className="text-forge-muted">&rarr;</span>
+                  <StatusBadge status={h.to_stage} />
                   {h.reason && <span className="text-forge-muted italic truncate max-w-xs">{h.reason}</span>}
                 </div>
               ))}

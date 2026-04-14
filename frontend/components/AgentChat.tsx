@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { sendAgentQuery, type IntermediateResult } from "@/lib/api";
 
 interface ChatMessage {
@@ -15,6 +15,26 @@ const STARTER_QUESTIONS = [
   "Show ops anomalies from today",
   "Compare my last two runs",
 ];
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="text-2xs text-forge-muted hover:text-forge-secondary transition-colors px-1.5 py-0.5 rounded hover:bg-white/[0.04]"
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 export default function AgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -99,6 +119,13 @@ export default function AgentChat() {
             >
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
 
+              {/* Copy button for agent messages */}
+              {msg.role === "agent" && (
+                <div className="flex justify-end mt-2">
+                  <CopyButton text={msg.content} />
+                </div>
+              )}
+
               {/* Tool calls display */}
               {msg.intermediate_results && msg.intermediate_results.length > 0 && (
                 <div className="mt-3 space-y-2 border-t border-forge-border pt-3">
@@ -108,7 +135,7 @@ export default function AgentChat() {
                   {msg.intermediate_results.map((ir, j) => (
                     <div
                       key={j}
-                      className="bg-forge-bg rounded-md p-2.5 text-xs"
+                      className="bg-forge-bg-raised rounded-md p-2.5 text-xs"
                     >
                       <span className="text-forge-accent font-mono text-2xs font-medium">
                         {ir.tool}
@@ -162,7 +189,7 @@ export default function AgentChat() {
             onKeyDown={handleKeyDown}
             placeholder="Ask about experiments, runs, or ops data..."
             disabled={loading}
-            className="flex-1 bg-forge-card border border-forge-border rounded-lg px-4 py-3 text-sm text-forge-text placeholder-forge-muted focus:outline-none focus:border-forge-border-light transition-colors duration-150 disabled:opacity-50"
+            className="flex-1 bg-forge-card border border-forge-border rounded-lg px-4 py-3 text-sm text-forge-text placeholder-forge-muted focus:outline-none focus:border-forge-accent/40 transition-colors duration-150 disabled:opacity-50"
           />
           <button
             onClick={() => handleSend()}

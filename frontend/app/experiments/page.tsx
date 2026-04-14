@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import StatusBadge from "@/components/StatusBadge";
 import { fetchExperiments, type ExperimentResponse } from "@/lib/api";
 
 export default function ExperimentsPage() {
@@ -64,7 +65,7 @@ export default function ExperimentsPage() {
         <div className="bg-forge-card border border-forge-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-forge-border bg-forge-bg-raised">
+              <tr className="border-b border-forge-border bg-forge-bg-raised sticky top-0 z-10">
                 <th className="px-5 py-3 text-left text-2xs font-medium text-forge-muted uppercase tracking-widest">
                   Name
                 </th>
@@ -100,19 +101,7 @@ export default function ExperimentsPage() {
                     )}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span
-                      className={`text-2xs font-medium ${
-                        exp.status === "completed"
-                          ? "text-forge-success"
-                          : exp.status === "running"
-                          ? "text-forge-accent"
-                          : exp.status === "failed"
-                          ? "text-forge-error"
-                          : "text-forge-muted"
-                      }`}
-                    >
-                      {exp.status}
-                    </span>
+                    <StatusBadge status={exp.status} />
                   </td>
                   <td className="px-5 py-3.5 text-forge-muted text-xs font-mono">
                     {exp.dataset_id ? exp.dataset_id.slice(0, 8) + "..." : "—"}
